@@ -38,6 +38,9 @@ Garantir que MCP ne contourne pas la sécurité Redmine et que les utilisateurs 
 - Un outil apparaît dans `tools/list` uniquement si l'utilisateur a la permission de l'utiliser.
 - Les permissions sont vérifiées à nouveau lors de l'appel de l'outil.
 - Les données sont filtrées selon les règles de visibilité Redmine (projets, tickets, membres).
+- Si les arguments incluent explicitement un `project` (id ou identifier) inexistant ou invisible pour l'utilisateur courant, l'appel renvoie `NOT_FOUND` (« projet introuvable ») **avant** la vérification de permission de l'outil. Cela s'applique aux permissions symbol et Proc. Un projet invisible est traité comme un projet manquant : un `FORBIDDEN` distinct n'est pas renvoyé dans ce cas.
+- Si le projet est trouvé et visible mais que la permission d'opération manque — `FORBIDDEN`.
+- Les appels sans paramètre `project` ne sont pas concernés par cette règle.
 
 ### Permissions des ressources et prompts
 
@@ -61,6 +64,8 @@ Garantir que MCP ne contourne pas la sécurité Redmine et que les utilisateurs 
 | Clé API invalide ou manquante | HTTP 401 |
 | Pas de permission Use MCP | HTTP 403 |
 | Pas de permission pour un outil spécifique | Outil absent de `tools/list` ; appel direct — erreur « Permission denied » |
+| Les arguments incluent un `project` inexistant ou invisible | `NOT_FOUND` (projet introuvable), avant la vérification de permission de l'outil |
+| Le projet est visible mais la permission d'opération manque | `FORBIDDEN` |
 | Entité indisponible pour l'utilisateur | Réponse d'outil avec une description d'erreur (par exemple, « Issue not found ») |
 
 ## Scénarios de test

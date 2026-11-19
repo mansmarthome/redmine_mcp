@@ -61,15 +61,34 @@ module RedmineMcp
 
       def parse_response(status, body_text)
         case status
-        when 200
+        when 200..299
+          return {} if body_text.blank?
+
           JSON.parse(body_text)
         when 404
           Core::Helpers.error_result(:error_page_not_found, code: 'NOT_FOUND')
+        when 409
+          map_conflict(parse_json(body_text))
         else
           map_failure(status, parse_json(body_text))
         end
       rescue JSON::ParserError
         map_failure(status, {})
+      end
+
+      def map_conflict(payload)
+        message = extract_error(payload).presence || I18n.t(:notice_locking_conflict)
+        details =
+          if payload.is_a?(Hash) && payload.present?
+            {response: payload}
+          else
+            {hint: I18n.t(:hint_mcp_conflict_stale)}
+          end
+        Core::Helpers.mcp_error(
+          code: 'CONFLICT',
+          message: message,
+          details: details
+        )
       end
 
       def parse_json(body_text)

@@ -97,7 +97,7 @@ name: 'search_issues'
 Полное имя в MCP формируется автоматически:
 
 ```text
-redmine_<plugin_id>_<name>
+redmine_<plugin_id без ведущего redmine_>_<name>
 ```
 
 Для tools рекомендуется задавать `name` в формате `<verb>_<entity>`.
@@ -117,7 +117,9 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-Если `plugin_id` уже начинается с `redmine_` (например `redmine_advanced_checklists`), полное имя следует правилу `redmine_<plugin_id>_<name>`: `redmine_redmine_advanced_checklists_<name>`.
+Если `plugin_id` начинается с `redmine_` (например `redmine_advanced_checklists`), ведущий `redmine_` в имени отбрасывается: `redmine_advanced_checklists_<name>`. Прежнее имя с двойным префиксом `redmine_redmine_advanced_checklists_<name>` остаётся callable alias и не публикуется в `tools/list`.
+
+Полное имя tool — не длиннее 46 символов (MCP-клиенты добавляют свой префикс `mcp__<server>__`, а провайдеры ограничивают имя функции 64 символами). Более длинный tool не регистрируется, в лог пишется ошибка. При переименовании tool передайте прежнее короткое имя в `aliases: ['old_name']` — старое имя продолжит работать в `tools/call`, но не попадёт в `tools/list` (для `plugin_id` вида `redmine_*` дополнительно регистрируется legacy `redmine_redmine_<plugin_id>_old_name`). Callable alias — [04-extensions.md](04-extensions.md).
 
 Для resources используйте уникальный URI, например:
 

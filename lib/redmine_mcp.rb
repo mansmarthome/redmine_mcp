@@ -48,7 +48,7 @@ require "#{__dir__}/redmine_mcp/core/tools"
 require "#{__dir__}/redmine_mcp/patches/settings_controller_patch"
 
 Rails.application.config.after_initialize do
-  SettingsController.send(:include, RedmineMcp::Patches::SettingsControllerPatch) unless SettingsController.include?(RedmineMcp::Patches::SettingsControllerPatch)
+  SettingsController.prepend(RedmineMcp::Patches::SettingsControllerPatch) unless SettingsController <= RedmineMcp::Patches::SettingsControllerPatch
   RedmineMcp::Core::Tools.register!
   RedmineMcp::ExtensionLoader.load_all
 end

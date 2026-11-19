@@ -27,6 +27,7 @@ Umożliwić zewnętrznym klientom AI interakcję z Redmine przy użyciu standard
 - Odpowiedzi narzędzi zwracają kopertę JSON w `structuredContent` (`ok`, `data` lub `error`) oraz krótką reprezentację tekstową w `content` (ciąg JSON przy sukcesie, komunikat błędu przy niepowodzeniu).
 - Klucz API jest akceptowany wyłącznie z nagłówka `X-Redmine-API-Key`. Treść JSON-RPC nie służy do uwierzytelniania i nie jest parsowana przed sprawdzeniem rozmiaru żądania.
 - Rozmiar treści HTTP jest ograniczony przed parsowaniem JSON: po przekroczeniu limitu żądanie jest odrzucane, a transport MCP nie odczytuje treści.
+- W `initialize` instrukcje serwera zawierają ogólną wskazówkę: opisy zgłoszeń, notatki i tekst Wiki należy pisać w aktywnym formacie tekstu Redmine. Dla `common_mark` — CommonMark Markdown; dla `textile` — Textile; przy wyłączonym formatowaniu (pusty ciąg) — zwykły tekst. Dla formatu zewnętrznego zarejestrowanego przez wtyczkę instructions zawierają krótką wskazówkę z identyfikatorem aktywnego formatu oraz prośbę o wyjaśnienie składni, jeśli jest nieznana; sama składnia pochodzi z dokumentacji danego formatu, a aktualny kod jest też dostępny przez `redmine_get_mcp_info`. Jeśli w ustawieniach pozostaje niezarejestrowany format (np. po usunięciu wtyczki), instructions informują, że format jest niedostępny, i proponują zwykły tekst — jak przy wyświetlaniu w Redmine bez dostępnego formatowania. Wartość formatu jest odczytywana przy budowaniu instrukcji dla żądania i nie jest cache’owana na cały proces aplikacji.
 
 ## Przypadki brzegowe
 
@@ -34,6 +35,8 @@ Umożliwić zewnętrznym klientom AI interakcję z Redmine przy użyciu standard
 - W trybie bezstanowym żądania `GET` dla samodzielnego strumienia SSE nie są obsługiwane (HTTP 405) — to oczekiwane zachowanie.
 - Przy pracy za load balancerem sticky sessions nie są wymagane.
 - Lista narzędzi może różnić się między użytkownikami w zależności od uprawnień.
+- Po zmianie formatu tekstu w administracji bez restartu Redmine nowy `initialize` otrzymuje zaktualizowaną wskazówkę w instructions; aktualny kod formatu jest też dostępny przez `redmine_get_mcp_info` bez ponownego połączenia.
+- Jeśli w ustawieniach pozostał identyfikator formatu usuniętej wtyczki, `initialize` nie traktuje go jako aktywnego i proponuje zwykły tekst.
 
 ## Obsługa błędów
 
@@ -56,3 +59,6 @@ Umożliwić zewnętrznym klientom AI interakcję z Redmine przy użyciu standard
 9. `resources/read` z URI niedostępnego projektu nie zwraca treści zasobu.
 10. `prompts/get` z argumentem niedostępnego projektu odmawia dostępu.
 11. `tools/call` z pustymi argumentami, dodatkowym polem lub złym typem argumentu zwraca `isError: true` i `structuredContent.error.code` `VALIDATION_ERROR`.
+12. Instructions w `initialize` wspominają aktywny format tekstu (CommonMark, Textile, zwykły tekst lub identyfikator zarejestrowanego formatu zewnętrznego) dla opisów zgłoszeń, notatek i Wiki.
+13. Po zmianie formatu tekstu bez restartu Redmine nowy `initialize` odzwierciedla nowy format w instructions.
+14. Jeśli ustawienia wskazują niezarejestrowany format, `initialize` zgłasza niedostępność i proponuje zwykły tekst.

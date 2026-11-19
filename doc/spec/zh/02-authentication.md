@@ -38,6 +38,9 @@ MCP 访问使用标准 Redmine API 密钥认证。所有操作以密钥所属用
 - 仅当用户有权限使用时，工具才会出现在 `tools/list` 中。
 - 调用工具时会再次检查权限。
 - 数据按 Redmine 可见性规则过滤（项目、议题、成员）。
+- 若参数中显式指定的 `project`（id 或 identifier）不存在或对当前用户不可见，则在工具权限检查**之前**返回 `NOT_FOUND`（「未找到项目」）。适用于 symbol-permission 与 Proc-permission。不可见项目与不存在的项目同等对待：此种情况不单独返回 `FORBIDDEN`。
+- 若项目存在且可见但缺少该操作权限 — `FORBIDDEN`。
+- 不含 `project` 参数的调用不受此规则影响。
 
 ### 资源与提示权限
 
@@ -61,6 +64,8 @@ MCP 访问使用标准 Redmine API 密钥认证。所有操作以密钥所属用
 | API 密钥无效或缺失 | HTTP 401 |
 | 无 Use MCP 权限 | HTTP 403 |
 | 无特定工具权限 | 工具不在 `tools/list` 中；直接调用 — "Permission denied" 错误 |
+| 参数包含不存在或不可见的 `project` | `NOT_FOUND`（未找到项目），在工具权限检查之前 |
+| 项目可见但缺少操作权限 | `FORBIDDEN` |
 | 用户无法访问的实体 | 工具响应带错误描述（例如 "Issue not found"） |
 
 ## 测试场景

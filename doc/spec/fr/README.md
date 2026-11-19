@@ -166,7 +166,7 @@ Le serveur fournit des outils pour les projets, les tickets, les utilisateurs, l
 ### Fiabilité des opérations
 
 - `expected_updated_at` — sur les opérations sensibles de mise à jour/suppression.
-- `idempotency_key` — sur `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — sur `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Limites
 
@@ -190,7 +190,7 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | Outil | Description |
 |------|-------------|
 | `list_projects` | Lister les projets |
-| `get_project` | Détails du projet |
+| `get_project` | Détails du projet ; optionnellement `include_modules` pour les modules |
 | `list_project_issue_custom_fields` | Champs personnalisés de tickets du projet |
 | `summarize_project_status` | Résumé des métriques du projet construit par le serveur pour N jours |
 | `list_project_activities` | Flux d'activité du projet (événements, pas les types d'activité de saisie du temps) |
@@ -202,7 +202,6 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `list_project_members` | Membres du projet et leurs rôles |
 | `list_project_member_candidates` | Utilisateurs et groupes pouvant être ajoutés au projet |
 | `list_roles` | Rôles gérables dans le projet |
-| `get_project_modules` | Modules du projet activés |
 | `add_project_member` | Ajouter un membre |
 | `update_project_member` | Modifier les rôles d'un membre |
 | `remove_project_member` | Retirer un membre |
@@ -214,10 +213,7 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `get_issue` | Détails du ticket (journal, pièces jointes, champs personnalisés, etc.) |
 | `list_issues` | Lister les tickets avec filtres et pagination |
 | `search_issues` | Recherche textuelle sur les tickets |
-| `run_issue_query` | Exécuter une requête de tickets enregistrée |
 | `get_issue_form_options` | Valeurs autorisées des champs du formulaire de ticket (un seul appel) |
-| `validate_issue_create` | Valider les paramètres de création de ticket sans écriture |
-| `validate_issue_update` | Valider les paramètres de mise à jour de ticket sans écriture |
 | `create_issue` | Créer un ticket |
 | `update_issue` | Mettre à jour les attributs du ticket et les pièces jointes |
 | `add_issue_note` | Ajouter un commentaire à un ticket (optionnellement avec pièces jointes) |
@@ -226,11 +222,9 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `list_issue_relations` | Lister les relations de tickets |
 | `create_issue_relation` | Créer une relation entre tickets |
 | `delete_issue_relation` | Supprimer une relation de tickets |
-| `list_subtasks` | Sous-tâches |
 | `add_issue_watcher` | Ajouter un observateur |
 | `remove_issue_watcher` | Retirer un observateur |
 | `update_issue_note` | Modifier une entrée de journal |
-| `set_issue_note_private` | Modifier la confidentialité d'une entrée de journal |
 | `get_private_notes` | Commentaires privés uniquement |
 | `list_issue_categories` | Catégories de tickets du projet |
 | `create_issue_category` | Créer une catégorie |
@@ -252,19 +246,16 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `create_time_entry` | Créer une entrée de temps |
 | `update_time_entry` | Mettre à jour une entrée de temps |
 | `list_time_entry_activities` | Types d'activité de saisie du temps (pas le flux d'événements du projet) |
-| `import_time_entries` | Import en masse d'entrées de temps |
 
 ### Données de référence
 
 | Outil | Description |
 |------|-------------|
-| `list_trackers` | Tous les trackers |
-| `list_project_trackers` | Trackers du projet |
+| `list_trackers` | Trackers de tickets (tous ou avec `project` — par projet) |
 | `list_issue_statuses` | Statuts de tickets |
 | `list_issue_priorities` | Priorités de tickets |
-| `admin_list_users` | Utilisateurs avec filtres (administrateur uniquement) |
 | `get_current_user` | Utilisateur actuel |
-| `list_queries` | Requêtes enregistrées (métadonnées ; l'exécution passe par `run_issue_query`) |
+| `list_queries` | Requêtes enregistrées (métadonnées ; l'exécution passe par `list_issues` avec `query_id`) |
 
 ### Recherche et wiki
 
@@ -277,6 +268,17 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `update_wiki_page` | Mettre à jour une page wiki |
 | `delete_wiki_page` | Supprimer une page wiki |
 | `rename_wiki_page` | Renommer une page wiki |
+
+### Repository / SCM
+
+| Outil | Description |
+|------|-------------|
+| `list_repositories` | Dépôts SCM d'un projet |
+| `get_repository` | Métadonnées du dépôt et branche par défaut |
+| `list_revisions` | Changesets en cache (paginés) |
+| `get_revision` | Un changeset avec changements de fichiers optionnels |
+| `get_repository_file` | Liste de répertoire ou contenu de fichier |
+| `get_repository_diff` | Diff unifié avec limites de taille MCP |
 
 ### Forums
 
@@ -293,8 +295,7 @@ Avec un cache local au processus, les garanties de limitation de débit et d'ide
 | `list_project_files` | Fichiers du projet |
 | `upload_file` | Téléverser un fichier |
 | `delete_attachment` | Supprimer une pièce jointe |
-| `get_attachment` | Métadonnées de la pièce jointe et `content_url` |
-| `download_attachment` | Contenu de la pièce jointe (`content_base64`, jusqu'à 10 MiB) |
+| `get_attachment` | Métadonnées, `content_url`, `content_base64` optionnel (`include_content`, jusqu'à 10 MiB) |
 
 ### Utilitaires
 

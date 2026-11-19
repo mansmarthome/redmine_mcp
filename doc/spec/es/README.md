@@ -166,7 +166,7 @@ El servidor proporciona herramientas para proyectos, incidencias, usuarios, regi
 ### Fiabilidad de las operaciones
 
 - `expected_updated_at` — en operaciones sensibles de actualización/eliminación.
-- `idempotency_key` — en `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — en `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Límites
 
@@ -190,7 +190,7 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | Herramienta | Descripción |
 |------|-------------|
 | `list_projects` | Listar proyectos |
-| `get_project` | Detalles del proyecto |
+| `get_project` | Detalles del proyecto; opcionalmente `include_modules` para módulos |
 | `list_project_issue_custom_fields` | Campos personalizados de incidencias del proyecto |
 | `summarize_project_status` | Resumen de métricas del proyecto generado por el servidor para N días |
 | `list_project_activities` | Feed de actividad del proyecto (eventos, no tipos de registro de tiempo) |
@@ -202,7 +202,6 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `list_project_members` | Miembros del proyecto y sus roles |
 | `list_project_member_candidates` | Usuarios y grupos que pueden añadirse al proyecto |
 | `list_roles` | Roles gestionables en el proyecto |
-| `get_project_modules` | Módulos del proyecto habilitados |
 | `add_project_member` | Añadir un miembro |
 | `update_project_member` | Cambiar roles de miembro |
 | `remove_project_member` | Eliminar un miembro |
@@ -214,10 +213,7 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `get_issue` | Detalles de la incidencia (diario, adjuntos, campos personalizados, etc.) |
 | `list_issues` | Listar incidencias con filtros y paginación |
 | `search_issues` | Búsqueda de texto en incidencias |
-| `run_issue_query` | Ejecutar una consulta de incidencias guardada |
 | `get_issue_form_options` | Valores permitidos de los campos del formulario de incidencia (una sola llamada) |
-| `validate_issue_create` | Validar parámetros de creación de incidencia sin escribir |
-| `validate_issue_update` | Validar parámetros de actualización de incidencia sin escribir |
 | `create_issue` | Crear una incidencia |
 | `update_issue` | Actualizar atributos de incidencia y adjuntos |
 | `add_issue_note` | Añadir un comentario a una incidencia (opcionalmente con adjuntos) |
@@ -226,11 +222,9 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `list_issue_relations` | Listar relaciones de incidencias |
 | `create_issue_relation` | Crear una relación entre incidencias |
 | `delete_issue_relation` | Eliminar una relación de incidencias |
-| `list_subtasks` | Subtareas |
 | `add_issue_watcher` | Añadir un observador |
 | `remove_issue_watcher` | Eliminar un observador |
 | `update_issue_note` | Editar una entrada del diario |
-| `set_issue_note_private` | Cambiar la privacidad de una entrada del diario |
 | `get_private_notes` | Solo comentarios privados |
 | `list_issue_categories` | Categorías de incidencias del proyecto |
 | `create_issue_category` | Crear una categoría |
@@ -252,19 +246,16 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `create_time_entry` | Crear una entrada de tiempo |
 | `update_time_entry` | Actualizar una entrada de tiempo |
 | `list_time_entry_activities` | Tipos de actividad para registro de tiempo (no el feed de eventos del proyecto) |
-| `import_time_entries` | Importación masiva de entradas de tiempo |
 
 ### Datos de referencia
 
 | Herramienta | Descripción |
 |------|-------------|
-| `list_trackers` | Todos los trackers |
-| `list_project_trackers` | Trackers del proyecto |
+| `list_trackers` | Trackers de incidencias (todos o con `project` — por proyecto) |
 | `list_issue_statuses` | Estados de incidencias |
 | `list_issue_priorities` | Prioridades de incidencias |
-| `admin_list_users` | Usuarios con filtros (solo administrador) |
 | `get_current_user` | Usuario actual |
-| `list_queries` | Consultas guardadas (metadatos; la ejecución es `run_issue_query`) |
+| `list_queries` | Consultas guardadas (metadatos; la ejecución es `list_issues` con `query_id`) |
 
 ### Búsqueda y wiki
 
@@ -277,6 +268,17 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `update_wiki_page` | Actualizar una página wiki |
 | `delete_wiki_page` | Eliminar una página wiki |
 | `rename_wiki_page` | Renombrar una página wiki |
+
+### Repository / SCM
+
+| Herramienta | Descripción |
+|------|-------------|
+| `list_repositories` | Repositorios SCM de un proyecto |
+| `get_repository` | Metadatos del repositorio y rama por defecto |
+| `list_revisions` | Changesets en caché (paginados) |
+| `get_revision` | Un changeset con cambios de archivo opcionales |
+| `get_repository_file` | Listado de directorio o contenido de archivo |
+| `get_repository_diff` | Diff unificado con límites de tamaño MCP |
 
 ### Foros
 
@@ -293,8 +295,7 @@ Con una caché local al proceso, las garantías de limitación de velocidad e id
 | `list_project_files` | Archivos del proyecto |
 | `upload_file` | Subir un archivo |
 | `delete_attachment` | Eliminar un adjunto |
-| `get_attachment` | Metadatos del adjunto y `content_url` |
-| `download_attachment` | Contenido del adjunto (`content_base64`, hasta 10 MiB) |
+| `get_attachment` | Metadatos del adjunto, `content_url`, `content_base64` opcional (`include_content`, hasta 10 MiB) |
 
 ### Utilidades
 

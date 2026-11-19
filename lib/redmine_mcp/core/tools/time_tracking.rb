@@ -21,23 +21,6 @@ module RedmineMcp
   module Core
     module Tools
       module TimeTracking
-        ENTRY_WHITELIST = %w[hours user_id user_ref project issue_id activity_id comments spent_on].freeze
-
-        IMPORT_TIME_ENTRY_SCHEMA = {
-          type: 'object',
-          properties: {
-            hours: Helpers::HOURS_SCHEMA,
-            project: Helpers::PROJECT_SCHEMA,
-            issue_id: Helpers::ISSUE_ID_SCHEMA,
-            user_id: Helpers::USER_ID_SCHEMA,
-            activity_id: Helpers::ACTIVITY_ID_SCHEMA,
-            comments: Helpers::TIME_ENTRY_COMMENTS_SCHEMA,
-            spent_on: Helpers::SPENT_ON_SCHEMA
-          },
-          required: ['hours'],
-          oneOf: Helpers::TIME_ENTRY_TARGET_ONE_OF
-        }.freeze
-
       module_function
 
         def register!
@@ -45,7 +28,6 @@ module RedmineMcp
           register_create_time_entry
           register_update_time_entry
           register_list_time_entry_activities
-          register_import_time_entries
         end
 
         def register_list_time_entries
@@ -138,7 +120,7 @@ module RedmineMcp
             title: 'List time entry activities',
             description: 'Return a paginated list of time logging activity types (the catalog used when logging time). This is not the project activity feed; for project events use ' \
                          'redmine_list_project_activities. Without project, returns global shared activities; with project, returns activities enabled for that ' \
-                         'project. Each item includes id, name, active, and is_default. Use before redmine_create_time_entry or redmine_import_time_entries when activity_id is unknown. Default ' \
+                         'project. Each item includes id, name, active, and is_default. Use before redmine_create_time_entry when activity_id is unknown. Default ' \
                          'limit 25, maximum ' \
                          '100. Does not modify Redmine.',
             input_schema: {
@@ -150,37 +132,6 @@ module RedmineMcp
             permission: ->(user, args, project) { time_activities_allowed?(user, args, project) },
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
             handler: method(:list_time_entry_activities)
-          )
-        end
-
-        def register_import_time_entries
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'import_time_entries',
-            title: 'Import time entries',
-            description: 'Bulk-create up to 500 time entries in one call. Each entry uses the same fields as redmine_create_time_entry. Optional idempotency_key makes retries after timeout return ' \
-                         'the same ' \
-                         'result instead of creating duplicates. Returns total, succeeded, failed, created items, and per-entry errors. By default continues after failures; set stop_on_error=true ' \
-                         'to abort on the first error. Requires log_time on each target project. Blocked when MCP read-only mode is enabled. For a single entry, use redmine_create_time_entry ' \
-                         'instead.',
-            input_schema: {
-              properties: {
-                entries: {
-                  type: 'array',
-                  minItems: 1,
-                  maxItems: 500,
-                  description: 'List of time entries to import (max 500 per call).',
-                  items: IMPORT_TIME_ENTRY_SCHEMA
-                },
-                stop_on_error: {type: 'boolean', description: 'Abort on the first error. Default: false'},
-                idempotency_key: Helpers::IDEMPOTENCY_KEY_SCHEMA
-              },
-              required: ['entries']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::IMPORT_TIME_ENTRIES,
-            permission: ->(user, _args, _project) { import_time_entries_allowed?(user) },
-            annotations: Helpers::CREATE_ANNOTATIONS,
-            handler: method(:import_time_entries)
           )
         end
 
@@ -279,48 +230,6 @@ module RedmineMcp
           end
         end
 
-        def import_time_entries(args, context)
-          blocked = ReadOnly.guard_write!
-          return blocked if blocked
-
-          IdempotencyStore.fetch(user: context[:user], tool_name: 'import_time_entries', key: args[:idempotency_key], args: args) do
-            import_time_entries_once(args, context)
-          end
-        end
-
-        def import_time_entries_once(args, context)
-          user = context[:user]
-          entries = Array(args[:entries])
-          return Helpers.error_result(:error_mcp_invalid_parameters) if entries.empty?
-          return Helpers.error_result(:error_mcp_invalid_parameters) if entries.size > 500
-
-          stop_on_error = Helpers.truthy?(args[:stop_on_error])
-          created = []
-          errors = []
-
-          ActiveRecord::Base.transaction do
-            entries.each_with_index do |raw_entry, index|
-              entry_data = raw_entry.is_a?(Hash) ? raw_entry.deep_symbolize_keys : {}
-              filtered = entry_data.slice(*ENTRY_WHITELIST.map(&:to_sym))
-              result = create_imported_entry(user, filtered)
-              if result[:error]
-                errors << {index: index, entry: entry_data, error: result[:error]}
-                break if stop_on_error
-              else
-                created << result
-              end
-            end
-          end
-
-          {
-            total: entries.size,
-            succeeded: created.size,
-            failed: errors.size,
-            created: created,
-            errors: errors
-          }
-        end
-
         def resolve_time_entry_target(user, args)
           if args[:issue_id].present?
             issue = Issue.visible(user).find_by(id: args[:issue_id])
@@ -335,19 +244,6 @@ module RedmineMcp
           else
             [nil, nil, Helpers.error_result(:error_mcp_invalid_parameters)]
           end
-        end
-
-        def create_imported_entry(user, entry_data)
-          return Helpers.error_result(:error_mcp_invalid_parameters) if entry_data[:hours].blank?
-
-          project, issue, err = resolve_time_entry_target(user, entry_data)
-          return err if err
-          return Helpers.error_result(:error_mcp_permission_denied) unless user.allowed_to?(:log_time, project)
-
-          entry = build_time_entry(user, project, issue, entry_data)
-          return Helpers.model_errors(entry) unless entry.save
-
-          Helpers.serialize_time_entry(entry)
         end
 
         def build_time_entry(user, project, issue, args)
@@ -409,12 +305,8 @@ module RedmineMcp
             project ||= Helpers.find_project(user, args[:project])
             project && user.allowed_to?(:log_time, project)
           else
-            import_time_entries_allowed?(user)
+            Helpers.any_project_allows?(user, :log_time)
           end
-        end
-
-        def import_time_entries_allowed?(user)
-          Helpers.any_project_allows?(user, :log_time)
         end
       end
     end

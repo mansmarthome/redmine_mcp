@@ -20,6 +20,14 @@
 require File.expand_path('../test_helper', __dir__)
 
 class RedmineMcpSettingsTest < RedmineMcpTestCase
+  test 'plugin_settings returns empty hash when database is missing' do
+    connection = ActiveRecord::Base.connection
+    connection.stubs(:table_exists?).with('settings').raises(ActiveRecord::NoDatabaseError)
+
+    assert_equal({}, RedmineMcp::Settings.plugin_settings)
+    assert_equal(false, RedmineMcp::Settings.enabled?)
+  end
+
   test 'prepare_for_save drops log_level' do
     result = RedmineMcp::Settings.prepare_for_save('log_level' => 'debug')
 

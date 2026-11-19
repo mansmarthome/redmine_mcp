@@ -74,11 +74,14 @@ Settings are available in **Administration → Plugins → Redmine MCP → Confi
 - A previously saved extension auto-load flag is ignored: extension loading follows Enable MCP.
 - A previously saved logging level is ignored and removed when settings are saved.
 - With Read-only mode enabled, write tools remain in `tools/list` (if the user has permissions) but return an error when called; read actions of combined tools continue to work.
+- If the database has not been created yet or the settings table is unavailable, reading plugin settings is treated as “settings unavailable”: MCP is considered disabled and extension autoload does not run. This must not interrupt Redmine boot or commands such as `db:create`.
+- Other database connection errors are not masked as “no settings”: only a missing database/settings table yields a safe empty-settings fallback; other connection failures are not replaced by this behavior.
 
 ## Error handling
 
 - Settings errors must not block Redmine startup.
 - Logging errors do not affect MCP request processing.
+- A missing database when reading plugin settings does not interrupt application initialization or database creation.
 
 ## Test scenarios
 
@@ -89,3 +92,4 @@ Settings are available in **Administration → Plugins → Redmine MCP → Confi
 5. The settings page shows names of only installed plugins with MCP integration; each has a checkbox.
 6. A plugin without MCP integration is not shown on the settings page.
 7. When MCP is disabled, extensions from other plugins are not loaded on startup.
+8. When the database is missing, reading plugin settings does not interrupt boot or `db:create`; MCP stays disabled until settings become available.

@@ -27,6 +27,7 @@ Redmine MCP 提供 HTTP 端点 `/mcp`，以 Streamable HTTP 模式实现 MCP（M
 - 工具响应在 `structuredContent` 中返回 JSON 封装（`ok`、`data` 或 `error`），并在 `content` 中返回简短文本表示（成功时为 JSON 字符串，失败时为错误消息）。
 - API 密钥仅从 `X-Redmine-API-Key` 请求头接受。JSON-RPC 请求体不用于认证，且在请求大小检查前不解析。
 - 在 JSON 解析前限制 HTTP 请求体大小：超出限制时拒绝请求，MCP 传输层不读取请求体。
+- 在 `initialize` 中，服务器 instructions 包含通用提示：问题描述、备注和 Wiki 正文应使用当前 Redmine 文本格式编写。`common_mark` 为 CommonMark Markdown；`textile` 为 Textile；禁用格式时（空字符串）为纯文本。对于插件注册的第三方格式，instructions 会包含带有当前格式标识符的简短提示，并在语法未知时要求先确认；语法本身来自该格式的文档，实际代码也可通过 `redmine_get_mcp_info` 获取。若设置中仍保留未注册的格式（例如插件已卸载），instructions 会说明该格式不可用，并建议使用纯文本——与 Redmine 在无可用格式时的显示一致。格式值在为请求生成 instructions 时读取，不会在整个应用进程中缓存。
 
 ## 边界情况
 
@@ -34,6 +35,7 @@ Redmine MCP 提供 HTTP 端点 `/mcp`，以 Streamable HTTP 模式实现 MCP（M
 - 在无状态模式下，不支持独立 SSE 流的 `GET` 请求（HTTP 405）——这是预期行为。
 - 在负载均衡器后运行时，不需要粘性会话。
 - 工具列表可能因用户权限不同而不同。
+- 在管理界面更改文本格式且不重启 Redmine 后，新的 `initialize` 会在 instructions 中获得更新后的提示；当前格式代码也可通过 `redmine_get_mcp_info` 在无需重新连接的情况下获取。
 
 ## 错误处理
 
@@ -56,3 +58,6 @@ Redmine MCP 提供 HTTP 端点 `/mcp`，以 Streamable HTTP 模式实现 MCP（M
 9. 对不可访问项目 URI 的 `resources/read` 不返回资源内容。
 10. 带有不可访问项目参数的 `prompts/get` 拒绝访问。
 11. 参数为空、包含额外字段或参数类型错误的 `tools/call` 返回 `isError: true` 和 `structuredContent.error.code` `VALIDATION_ERROR`。
+12. `initialize` 的 instructions 会说明问题描述、备注和 Wiki 所用的当前文本格式（CommonMark、Textile、纯文本或已注册的第三方格式标识符）。
+13. 在不重启 Redmine 的情况下更改文本格式后，新的 `initialize` 会在 instructions 中反映新格式。
+14. 若设置中为未注册格式，`initialize` 会说明其不可用并建议纯文本。

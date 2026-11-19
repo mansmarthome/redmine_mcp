@@ -419,7 +419,7 @@ FORBIDDEN 仅在文本中设置约束：
 例如：
 
 - `redmine_list_project_members` — 特定项目的成员及其角色；
-- `redmine_admin_list_users` — 安装实例用户的全局列表，需要管理员权限。
+- `redmine_list_users` 无 `project` — 全局用户目录（仅 admin）；有 `project` — 项目成员。
 
 ### 5.5. 服务器级 instructions
 
@@ -428,11 +428,10 @@ FORBIDDEN 仅在文本中设置约束：
 Instructions 应补充各 description 中未有的上下文，并以完整名称引用工具（§5.2.1），例如：
 
 ```text
-Use redmine_search_issues before redmine_get_issue when the issue ID is unknown.
-Before creating or updating an issue, call redmine_list_project_trackers and
-redmine_list_project_issue_custom_fields when their IDs are not already known.
-Private notes must only be requested when the user explicitly needs them and has
-the required permission.
+在 issue ID 未知时，先使用 redmine_search_issues，再使用 redmine_get_issue。
+在创建或更新议题之前，若尚不知其 ID，请调用 redmine_list_trackers（可选 `project`）和
+redmine_list_project_issue_custom_fields。
+仅当用户明确需要且具有所需权限时，才应请求私有备注。
 ```
 
 FORBIDDEN：
@@ -1463,7 +1462,7 @@ MANDATORY 参数：
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1727,6 @@ redmine_get_issue
 5. 约定期满后移除 alias；
 6. 若服务器声明 `listChanged`，发送 `notifications/tools/list_changed`。
 
-当前示例（见 [03-core-tools.md](03-core-tools.md)）：`redmine_list_all_users` → `redmine_admin_list_users`；`redmine_list_files` → `redmine_list_project_files`；`redmine_delete_file` → `redmine_delete_attachment`；`redmine_get_server_info` → `redmine_get_mcp_info`。alias 在 `tools/call` 中被接受，不在 `tools/list` 中发布。
-
 ### 15.3. 更改描述
 
 Description 影响模型工具选择，视为行为变更。重大 description 变更时 SHOULD 审查 LLM 选择示例或进行重复选择审查。
@@ -1834,7 +1831,7 @@ MCP 服务器版本由单独 read-only 工具或服务器 metadata 返回。无�
 
 ### 18.3. 命名
 
-- 名称 MUST 以 `redmine_` 开头；然后 — `plugin_id` 和 `<verb>_<entity>`：`redmine_redmine_advanced_checklists_<verb>_<entity>`、`redmine_advanced_search_<verb>_<entity>`。
+- 名称 MUST 以 `redmine_` 开头；然后 — `plugin_id` 和 `<verb>_<entity>`：`redmine_advanced_checklists_<verb>_<entity>`、`redmine_advanced_search_<verb>_<entity>`。
 - 动词和 `manage_*` 禁止 — 按 §4.2 和 §3.1。
 - 不要复制核心工具名称，不要以不同名称发布相同意图的第二个 tool。
 
@@ -2030,7 +2027,7 @@ destructive 操作的规范性要求 — 见 §9.5。
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2053,7 @@ destructive 操作的规范性要求 — 见 §9.5。
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

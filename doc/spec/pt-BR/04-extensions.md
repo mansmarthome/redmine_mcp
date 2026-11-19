@@ -37,7 +37,7 @@ Fornecer uma abordagem única para integrar plugins Redmine com IA sem duplicar 
 
 - Um plugin de extensão pode registrar qualquer número de ferramentas.
 - Cada ferramenta tem: nome, descrição, schema de entrada, schema de saída, requisito de permissão e handler.
-- Nome completo da ferramenta: `redmine_<plugin_id>_<name>`, por exemplo `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Nome completo da ferramenta: `redmine_<plugin_id>_<name>`, por exemplo `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - Nomes de ferramentas duplicados são proibidos.
 - Uma ferramenta aparece no MCP apenas para usuários com as permissões correspondentes.
 - Uma ferramenta de extensão com escopo de tarefa pode exigir um módulo de projeto Redmine habilitado (o identificador do módulo não precisa corresponder ao id do plugin). Em `tools/list`, tal ferramenta é visível se o usuário tem a permissão declarada em pelo menos um projeto visível com esse módulo. Sem requisito de módulo, permissão em pelo menos um projeto visível é suficiente. A chamada ainda verifica a tarefa específica: visibilidade, permissão no seu projeto e módulo habilitado; caso contrário a resposta é "not found".

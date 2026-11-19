@@ -419,7 +419,7 @@ description과 `outputSchema`의 관계 — §7.1 및 §7.1.1 참조. 목록이 
 예:
 
 - `redmine_list_project_members` — 특정 프로젝트 멤버 및 역할;
-- `redmine_admin_list_users` — 설치 전체 사용자 목록, 관리 권한 필요.
+- `redmine_list_users`에서 `project` 없음 — 전역 사용자 디렉터리(admin 전용); `project` 있음 — 프로젝트 멤버.
 
 ### 5.5. 서버 수준 instructions
 
@@ -428,11 +428,10 @@ description과 `outputSchema`의 관계 — §7.1 및 §7.1.1 참조. 목록이 
 Instructions는 개별 description에 없는 맥락을 추가하고 전체 이름으로 도구를 참조해야 합니다(§5.2.1). 예:
 
 ```text
-Use redmine_search_issues before redmine_get_issue when the issue ID is unknown.
-Before creating or updating an issue, call redmine_list_project_trackers and
-redmine_list_project_issue_custom_fields when their IDs are not already known.
-Private notes must only be requested when the user explicitly needs them and has
-the required permission.
+issue ID를 모를 때는 redmine_get_issue 전에 redmine_search_issues를 사용합니다.
+이슈를 생성하거나 업데이트하기 전에 ID를 아직 모를 경우 redmine_list_trackers(선택적 `project` 포함)와
+redmine_list_project_issue_custom_fields를 호출합니다.
+비공개 노트는 사용자가 명시적으로 필요하고 필요한 권한이 있을 때만 요청해야 합니다.
 ```
 
 FORBIDDEN:
@@ -1463,7 +1462,7 @@ allowlist 없이 임의 필드 이름을 SQL, ActiveRecord `select`, serializer,
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1727,6 @@ redmine_get_issue
 5. 합의된 기간 후 alias 제거(별도 합의가 없으면 다음 major 버전 이전에는 제거하지 않음);
 6. 서버가 `listChanged`를 선언하면 `notifications/tools/list_changed` 전송.
 
-현재 예([03-core-tools.md](03-core-tools.md) 참조): `redmine_list_all_users` → `redmine_admin_list_users`; `redmine_list_files` → `redmine_list_project_files`; `redmine_delete_file` → `redmine_delete_attachment`; `redmine_get_server_info` → `redmine_get_mcp_info`. alias는 `tools/call`에서 허용되며 `tools/list`에는 게시되지 않음.
-
 ### 15.3. description 변경
 
 description은 모델 도구 선택에 영향을 주며 behavioral 변경으로 간주됩니다. description의 실질적 변경 시 SHOULD LLM 선택 예를 리뷰하거나 선택 리뷰를 반복.
@@ -1834,7 +1831,7 @@ Extension API로 도구를 추가하는 Redmine 플러그인 작성자용 섹션
 
 ### 18.3. 명명
 
-- 이름은 MUST `redmine_`로 시작; 다음 — `plugin_id`와 `<verb>_<entity>`: `redmine_redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
+- 이름은 MUST `redmine_`로 시작; 다음 — `plugin_id`와 `<verb>_<entity>`: `redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
 - 동사와 `manage_*` 금지 — §4.2 및 §3.1.
 - core 도구 이름을 복사하지 않고 같은 의도의 두 번째 도구를 다른 이름으로 게시하지 않음.
 
@@ -2030,7 +2027,7 @@ timeout으로 인한 반복이 중복을 만들 수 있는 작업:
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2053,7 @@ timeout으로 인한 반복이 중복을 만들 수 있는 작업:
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

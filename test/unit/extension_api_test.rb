@@ -196,7 +196,7 @@ class RedmineMcpExtensionApiTest < RedmineMcpTestCase
     end
 
     extension.register_tool_once(
-      name: 'discovery_visibility',
+      name: 'discovery_visible',
       description: 'x',
       input_schema: {properties: {}},
       output_schema: TEST_OUTPUT_SCHEMA,
@@ -204,13 +204,13 @@ class RedmineMcpExtensionApiTest < RedmineMcpTestCase
       handler: ->(_args, _context) { {} }
     )
 
-    tool = mcp_registry.tool('redmine_test_extension_api_discovery_visibility')
+    tool = mcp_registry.tool('redmine_test_extension_api_discovery_visible')
 
     assert tool.allowed_for?(user, {})
     assert_includes(mcp_registry.tools_for_user(user).map(&:full_name), tool.full_name)
     assert_not(tool.allowed_for?(user, {project: 'does-not-exist'}))
   ensure
-    mcp_registry.instance_variable_get(:@tools).delete('redmine_test_extension_api_discovery_visibility')
+    mcp_registry.instance_variable_get(:@tools).delete('redmine_test_extension_api_discovery_visible')
   end
 
   test 'extension write tool handler is not called in read-only mode' do

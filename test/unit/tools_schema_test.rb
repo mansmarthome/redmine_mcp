@@ -28,6 +28,39 @@ class RedmineMcpToolsSchemaTest < RedmineMcpTestCase
     end
   end
 
+  test 'every tool publishes a typed input object schema' do
+    all_mcp_tools.each do |tool|
+      schema = tool.input_schema
+
+      assert_equal 'object', schema[:type], "input_schema for #{tool.full_name} must declare type object"
+
+      combinator_root = schema[:properties].blank? &&
+                        (schema[:oneOf].present? || schema[:anyOf].present? || schema[:allOf].present?)
+      if combinator_root
+        branches = Array(schema[:oneOf]) + Array(schema[:anyOf]) + Array(schema[:allOf])
+        branches.each do |branch|
+          next unless branch.is_a?(Hash) && branch[:properties].present?
+
+          assert_equal false, branch[:additionalProperties],
+                       "input_schema branch for #{tool.full_name} must set additionalProperties false"
+        end
+      else
+        assert_equal false, schema[:additionalProperties],
+                     "input_schema for #{tool.full_name} must set additionalProperties false"
+      end
+    end
+  end
+
+  test 'list_issues and update_issue_note keep top-level combinators' do
+    list_schema = mcp_registry.tool('list_issues').input_schema
+    note_schema = mcp_registry.tool('update_issue_note').input_schema
+
+    assert list_schema[:oneOf].present?
+    assert note_schema[:anyOf].present?
+    assert_equal 'object', list_schema[:type]
+    assert_equal 'object', note_schema[:type]
+  end
+
   test 'every tool rejects missing required arguments' do
     all_mcp_tools.each do |tool|
       required = Array(tool.input_schema[:required])
@@ -86,22 +119,20 @@ class RedmineMcpToolsSchemaTest < RedmineMcpTestCase
     assert form_payload.dig(:data, :project).present?
     assert_mcp_output_schema('get_issue_form_options', form_payload)
 
-    users_payload = invoke_mcp_tool('admin_list_users', user: admin, args: {})
+    users_payload = invoke_mcp_tool('list_users', user: admin, args: {name: 'jsmith'})
 
     assert_mcp_ok(users_payload)
     assert users_payload.dig(:data, :items).first&.key?(:created_on)
-    assert_mcp_output_schema('admin_list_users', users_payload)
+    assert_mcp_output_schema('list_users', users_payload)
 
     listed_users = invoke_mcp_tool('list_users', user: admin, args: {project: 'ecookbook'})
     listed_item = listed_users.dig(:data, :items).first
     user_item_props = output_schema_item_properties('list_users')
-    all_user_item_props = output_schema_item_properties('admin_list_users')
 
     assert_mcp_ok(listed_users)
     assert listed_item
     assert_not listed_item.key?(:created_on)
-    assert_not(user_item_props.key?(:created_on) || user_item_props.key?('created_on'))
-    assert(all_user_item_props.key?(:created_on) || all_user_item_props.key?('created_on'))
+    assert(user_item_props.key?(:created_on) || user_item_props.key?('created_on'))
     assert_mcp_output_schema('list_users', listed_users)
 
     project, user = generate_stats_project(permissions: %i[view_issues])
@@ -146,19 +177,6 @@ class RedmineMcpToolsSchemaTest < RedmineMcpTestCase
 
     assert_mcp_output_schema('add_issue_note', note_with_files)
 
-    import_payload = {
-      ok: true,
-      data: {
-        total: 2,
-        succeeded: 1,
-        failed: 1,
-        created: [],
-        errors: [{index: 1, message: 'hours is invalid'}]
-      }
-    }
-
-    assert_mcp_output_schema('import_time_entries', import_payload)
-
     unsaved_payload = {
       ok: true,
       data: {
@@ -175,6 +193,7 @@ class RedmineMcpToolsSchemaTest < RedmineMcpTestCase
 
     assert attachment_props.key?(:size) || attachment_props.key?('size')
     assert attachment_props.key?(:content_url) || attachment_props.key?('content_url')
+    assert attachment_props.key?(:content_base64) || attachment_props.key?('content_base64')
 
     set_tmp_attachments_directory
     attachment = Attachment.create!(

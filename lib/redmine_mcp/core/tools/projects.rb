@@ -67,7 +67,6 @@ module RedmineMcp
           register_list_project_members
           register_list_project_member_candidates
           register_list_roles
-          register_get_project_modules
           register_add_project_member
           register_update_project_member
           register_remove_project_member
@@ -98,12 +97,16 @@ module RedmineMcp
             name: 'get_project',
             title: 'Get project',
             description: 'Return one Redmine project by id or identifier, including description, homepage, status, ' \
-                         'visibility, parent, visible subprojects, custom fields, and last_activity_date. Use when ' \
-                         'project details are needed beyond redmine_list_projects. Does not include members, modules, ' \
-                         'or issue statistics. Does not modify Redmine.',
+                         'visibility, parent, visible subprojects, custom fields, and last_activity_date. Optional include_modules ' \
+                         'adds enabled_modules (issue_tracking, wiki, time_tracking, and similar). Use when project details are needed ' \
+                         'beyond redmine_list_projects. Does not include members or issue statistics. Does not modify Redmine.',
             input_schema: {
               properties: {
-                project: Helpers::PROJECT_SCHEMA
+                project: Helpers::PROJECT_SCHEMA,
+                include_modules: {
+                  type: 'boolean',
+                  description: 'When true, include enabled_modules in the project object. Default: false.'
+                }
               },
               required: ['project']
             },
@@ -122,7 +125,7 @@ module RedmineMcp
             description: 'Return a paginated list of issue custom fields available in one project, including field format, required flag, default value, possible values, and tracker bindings. Use ' \
                          'before redmine_create_issue or redmine_update_issue when custom field IDs or allowed values are unknown. Optional tracker_id limits fields to one tracker. Requires project' \
                          '; call ' \
-                         'redmine_list_projects or redmine_list_project_trackers first when needed. Default limit 25, maximum 100. Does not modify Redmine.',
+                         'redmine_list_projects or redmine_list_trackers with project first when needed. Default limit 25, maximum 100. Does not modify Redmine.',
             input_schema: {
               properties: {
                 project: Helpers::PROJECT_SCHEMA,
@@ -356,7 +359,7 @@ module RedmineMcp
             description: 'Return a paginated list of members for one project, including users or groups and their assigned roles. Each item includes membership id, principal reference, project ' \
                          'reference, and role list. Use to obtain membership_id before redmine_update_project_member or redmine_remove_project_member, and to distinguish project members from the ' \
                          'global user ' \
-                         'directory in redmine_list_users or redmine_admin_list_users. To find people or groups to add, use ' \
+                         'directory in redmine_list_users. To find people or groups to add, use ' \
                          'redmine_list_project_member_candidates. Requires project and view_members. Default limit 25, maximum 100. Does not modify Redmine.',
             input_schema: {
               properties: {
@@ -418,27 +421,6 @@ module RedmineMcp
             permission: ->(user, args, project) { list_roles_allowed?(user, args, project) },
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
             handler: method(:list_roles)
-          )
-        end
-
-        def register_get_project_modules
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'get_project_modules',
-            title: 'Get project modules',
-            description: 'Return enabled Redmine module names for one project, such as issue_tracking, wiki, or time_tracking. Use before project-scoped tools when a feature may be disabled for ' \
-                         'the project. Requires project. Returns one object with project_id, project_name, and enabled_modules. Does not include member, issue, or version data. Does not modify ' \
-                         'Redmine.',
-            input_schema: {
-              properties: {
-                project: Helpers::PROJECT_SCHEMA
-              },
-              required: ['project']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::PROJECT_MODULES,
-            permission: :view_project,
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:get_project_modules)
           )
         end
 
@@ -553,7 +535,8 @@ module RedmineMcp
           project = Helpers.find_project(user, args[:project])
           return Helpers.error_result(:error_mcp_project_not_found) unless project
 
-          serialize_project_detail(project, user)
+          include_modules = Helpers.truthy?(args[:include_modules])
+          serialize_project_detail(project, user, include_modules: include_modules)
         end
 
         def list_project_issue_custom_fields(args, context)
@@ -611,9 +594,9 @@ module RedmineMcp
               open_count: open_scope.count,
               closed_count: scope.where(status_id: IssueStatus.where(is_closed: true).select(:id)).count
             },
-            overdue_count: open_scope.where('issues.due_date < ?', today).count,
+            overdue_count: open_scope.where(issues: {due_date: ...today}).count,
             unassigned_count: open_scope.where(assigned_to_id: nil).count,
-            stale_issues_count: open_scope.where('issues.updated_on < ?', since).count,
+            stale_issues_count: open_scope.where(issues: {updated_on: ...since}).count,
             issues_closed_during_period: closed_in_period.count,
             estimated_hours: summarize_estimated_hours(scope),
             spent_hours: summarize_spent_hours(user, project, scope),
@@ -782,18 +765,6 @@ module RedmineMcp
           Helpers.paginate_collection(roles, limit: limit, offset: offset) do |role|
             {id: Helpers.integer_id(role.id), name: role.name}
           end
-        end
-
-        def get_project_modules(args, context)
-          user = context[:user]
-          project = Helpers.find_project(user, args[:project])
-          return Helpers.error_result(:error_mcp_project_not_found) unless project
-
-          {
-            project_id: project.id,
-            project_name: project.name,
-            enabled_modules: project.enabled_module_names
-          }
         end
 
         def add_project_member(args, context)
@@ -991,8 +962,8 @@ module RedmineMcp
           payload
         end
 
-        def serialize_project_detail(project, user)
-          {
+        def serialize_project_detail(project, user, include_modules: false)
+          payload = {
             id: Helpers.integer_id(project.id),
             name: project.name,
             identifier: project.identifier,
@@ -1014,6 +985,8 @@ module RedmineMcp
             end,
             last_activity_date: project.last_activity_date
           }
+          payload[:enabled_modules] = project.enabled_module_names if include_modules
+          payload
         end
 
         def serialize_activity_event(event)

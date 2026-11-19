@@ -37,7 +37,8 @@ Provide a single approach to integrating Redmine plugins with AI without duplica
 
 - An extension plugin may register any number of tools.
 - Each tool has: name, description, input schema, output schema, permission requirement, and handler.
-- Full tool name: `redmine_<plugin_id>_<name>`, for example `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Full tool name: `redmine_<plugin prefix>_<name>`, where the plugin prefix is the plugin id without a leading `redmine_`, for example `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`. The former doubled `redmine_redmine_*` names stay callable aliases and are not listed in `tools/list`.
+- A full tool name published in `tools/list` must be at most 46 characters of `[A-Za-z0-9_-]`; a longer tool is not registered and an error is logged, other tools load normally.
 - Duplicate tool names are forbidden.
 - A tool appears in MCP only for users with the corresponding permissions.
 - An issue-scoped extension tool may require an enabled Redmine project module (the module identifier does not have to match the plugin id). In `tools/list`, such a tool is visible if the user has the declared permission in at least one visible project with that module. Without a module requirement, permission in at least one visible project is enough. The call still checks the specific issue: visibility, permission in its project, and enabled module; otherwise the response is "not found".

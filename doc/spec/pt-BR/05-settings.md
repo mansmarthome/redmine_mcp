@@ -74,11 +74,14 @@ As configurações estão disponíveis em **Administração → Plugins → Redm
 - Uma flag de auto-carga de extensões salva anteriormente é ignorada: a carga de extensões segue Habilitar MCP.
 - Um nível de logging salvo anteriormente é ignorado e removido ao salvar configurações.
 - Com Modo somente leitura habilitado, ferramentas de escrita permanecem em `tools/list` (se o usuário tem permissões) mas retornam erro quando chamadas; ações de leitura de ferramentas combinadas continuam funcionando.
+- Se o banco de dados ainda não foi criado ou a tabela de configurações está indisponível, a leitura das configurações do plugin é tratada como “configurações indisponíveis”: o MCP é considerado desativado e o autoload de extensões não é executado. Isso não deve interromper a inicialização do Redmine nem comandos como `db:create`.
+- Outros erros de conexão com o banco não são mascarados como “sem configurações”: apenas a ausência do banco/tabela settings gera um fallback seguro para configurações vazias; outras falhas de conexão não são substituídas por esse comportamento.
 
 ## Tratamento de erros
 
 - Erros de configurações não devem bloquear a inicialização do Redmine.
 - Erros de logging não afetam o processamento de requisições MCP.
+- A ausência do banco ao ler configurações do plugin não interrompe a inicialização da aplicação nem a criação do banco.
 
 ## Cenários de teste
 
@@ -89,3 +92,4 @@ As configurações estão disponíveis em **Administração → Plugins → Redm
 5. A página de configurações mostra nomes apenas de plugins instalados com integração MCP; cada um tem uma checkbox.
 6. Plugin sem integração MCP não é mostrado na página de configurações.
 7. Quando o MCP está desabilitado, extensões de outros plugins não são carregadas na inicialização.
+8. Quando o banco está ausente, ler configurações do plugin não interrompe o boot nem `db:create`; o MCP permanece desativado até as configurações ficarem disponíveis.

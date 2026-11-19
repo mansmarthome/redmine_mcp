@@ -38,6 +38,9 @@ Sicherstellen, dass MCP die Redmine-Sicherheit nicht umgeht und Benutzer nur erl
 - Ein Tool erscheint in `tools/list` nur, wenn der Benutzer die Berechtigung zur Nutzung hat.
 - Berechtigungen werden beim Tool-Aufruf erneut geprüft.
 - Daten werden nach Redmine-Sichtbarkeitsregeln gefiltert (Projekte, Vorgänge, Mitglieder).
+- Wenn in den Argumenten ein `project` (ID oder Identifier) angegeben ist, das nicht existiert oder für den aktuellen Benutzer nicht sichtbar ist, gibt der Aufruf `NOT_FOUND` („Projekt nicht gefunden“) **vor** der Tool-Berechtigungsprüfung zurück. Das gilt für Symbol- und Proc-Permission. Ein unsichtbares Projekt wird wie ein fehlendes behandelt: in diesem Fall wird kein separates `FORBIDDEN` zurückgegeben.
+- Wenn das Projekt gefunden und sichtbar ist, dem Benutzer aber die Berechtigung für die Operation fehlt — `FORBIDDEN`.
+- Aufrufe ohne Parameter `project` sind von dieser Regel nicht betroffen.
 
 ### Resource- und Prompt-Berechtigungen
 
@@ -61,6 +64,8 @@ Sicherstellen, dass MCP die Redmine-Sicherheit nicht umgeht und Benutzer nur erl
 | Ungültiger oder fehlender API-Schlüssel | HTTP 401 |
 | Keine Use-MCP-Berechtigung | HTTP 403 |
 | Keine Berechtigung für ein bestimmtes Tool | Tool fehlt in `tools/list`; direkter Aufruf — Fehler „Permission denied“ |
+| Argumente enthalten ein fehlendes oder unsichtbares `project` | `NOT_FOUND` (Projekt nicht gefunden), vor der Tool-Berechtigungsprüfung |
+| Projekt ist sichtbar, aber die Operationsberechtigung fehlt | `FORBIDDEN` |
 | Entität für Benutzer nicht verfügbar | Tool-Antwort mit Fehlerbeschreibung (z. B. „Issue not found“) |
 
 ## Testszenarien

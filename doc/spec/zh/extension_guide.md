@@ -117,7 +117,7 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-若 `plugin_id` 已以 `redmine_` 开头（例如 `redmine_advanced_checklists`），完整名称仍遵循 `redmine_<plugin_id>_<name>`：`redmine_redmine_advanced_checklists_<name>`。
+若 `plugin_id` 已以 `redmine_` 开头（例如 `redmine_advanced_checklists`），完整名称仍遵循 `redmine_<plugin_id>_<name>`：`redmine_advanced_checklists_<name>`。
 
 对于资源，使用唯一 URI，例如：
 

@@ -166,7 +166,7 @@ redmine.example.com
 ### Надёжность операций
 
 - `expected_updated_at` — для чувствительных операций обновления и удаления.
-- `idempotency_key` — на `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — на `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Лимиты
 
@@ -190,7 +190,7 @@ redmine.example.com
 | Инструмент | Описание |
 |------------|----------|
 | `list_projects` | Список проектов |
-| `get_project` | Детали проекта |
+| `get_project` | Детали проекта; опционально `include_modules` для модулей |
 | `list_project_issue_custom_fields` | Настраиваемые поля задач проекта |
 | `summarize_project_status` | Сводка метрик проекта, формируемая сервером, за N дней |
 | `list_project_activities` | Лента активности проекта (события, не типы учёта времени) |
@@ -202,7 +202,6 @@ redmine.example.com
 | `list_project_members` | Участники проекта и их роли |
 | `list_project_member_candidates` | Пользователи и группы для добавления в проект |
 | `list_roles` | Роли, которыми можно управлять в проекте |
-| `get_project_modules` | Включённые модули проекта |
 | `add_project_member` | Добавление участника |
 | `update_project_member` | Изменение ролей участника |
 | `remove_project_member` | Удаление участника |
@@ -214,10 +213,7 @@ redmine.example.com
 | `get_issue` | Детали задачи (журнал, вложения, настраиваемые поля и др.) |
 | `list_issues` | Список задач с фильтрами и постраничной навигацией |
 | `search_issues` | Текстовый поиск по задачам |
-| `run_issue_query` | Выполнение сохранённого запроса задач |
 | `get_issue_form_options` | Допустимые значения полей формы задачи (одним вызовом) |
-| `validate_issue_create` | Проверка параметров создания задачи без записи |
-| `validate_issue_update` | Проверка параметров обновления задачи без записи |
 | `create_issue` | Создание задачи |
 | `update_issue` | Обновление атрибутов задачи и вложений |
 | `add_issue_note` | Добавление комментария к задаче (опционально с вложениями) |
@@ -226,11 +222,9 @@ redmine.example.com
 | `list_issue_relations` | Список связей задачи |
 | `create_issue_relation` | Создание связи между задачами |
 | `delete_issue_relation` | Удаление связи между задачами |
-| `list_subtasks` | Подзадачи |
 | `add_issue_watcher` | Добавление наблюдателя |
 | `remove_issue_watcher` | Удаление наблюдателя |
-| `update_issue_note` | Редактирование записи журнала |
-| `set_issue_note_private` | Изменение приватности записи журнала |
+| `update_issue_note` | Текст и/или приватность комментария (`notes` и/или `private_notes`) |
 | `get_private_notes` | Только приватные комментарии |
 | `list_issue_categories` | Список категорий задач проекта |
 | `create_issue_category` | Создание категории |
@@ -252,19 +246,16 @@ redmine.example.com
 | `create_time_entry` | Создание записи учёта времени |
 | `update_time_entry` | Изменение записи учёта времени |
 | `list_time_entry_activities` | Типы активностей для учёта времени (не лента событий проекта) |
-| `import_time_entries` | Массовый импорт записей учёта времени |
 
 ### Справочники
 
 | Инструмент | Описание |
 |------------|----------|
-| `list_trackers` | Все трекеры |
-| `list_project_trackers` | Трекеры проекта |
+| `list_trackers` | Трекеры задач (все или с `project` — по проекту) |
 | `list_issue_statuses` | Статусы задач |
 | `list_issue_priorities` | Приоритеты задач |
-| `admin_list_users` | Пользователи с фильтрами (только администратор) |
 | `get_current_user` | Текущий пользователь |
-| `list_queries` | Сохранённые запросы (метаданные; выполнение — `run_issue_query`) |
+| `list_queries` | Сохранённые запросы (метаданные; выполнение — `list_issues` с `query_id`) |
 
 ### Поиск и Wiki
 
@@ -277,6 +268,17 @@ redmine.example.com
 | `update_wiki_page` | Изменение страницы Wiki |
 | `delete_wiki_page` | Удаление страницы Wiki |
 | `rename_wiki_page` | Переименование страницы Wiki |
+
+### Repository / SCM
+
+| Инструмент | Описание |
+|------------|----------|
+| `list_repositories` | SCM-репозитории проекта |
+| `get_repository` | Метаданные репозитория и default branch |
+| `list_revisions` | Кэшированные changesets (с пагинацией) |
+| `get_revision` | Один changeset с опциональными file changes |
+| `get_repository_file` | Содержимое каталога или файла |
+| `get_repository_diff` | Unified diff с MCP-лимитами |
 
 ### Форумы
 
@@ -293,8 +295,7 @@ redmine.example.com
 | `list_project_files` | Файлы проекта |
 | `upload_file` | Загрузка файла |
 | `delete_attachment` | Удаление вложения |
-| `get_attachment` | Метаданные и `content_url` вложения |
-| `download_attachment` | Содержимое вложения (`content_base64`, до 10 MiB) |
+| `get_attachment` | Метаданные, `content_url`, опционально `content_base64` (`include_content`, до 10 MiB) |
 
 ### Служебные
 

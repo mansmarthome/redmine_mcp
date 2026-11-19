@@ -25,6 +25,10 @@ module RedmineMcp
       MAX_UPLOAD_MIB = MAX_UPLOAD_BYTES / (1024 * 1024)
       MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024
       MAX_DOWNLOAD_MIB = MAX_DOWNLOAD_BYTES / (1024 * 1024)
+      MAX_REPOSITORY_FILE_BYTES = MAX_DOWNLOAD_BYTES
+      MAX_REPOSITORY_DIFF_LINES = 1500
+      MAX_REPOSITORY_DIFF_BYTES = 512 * 1024
+      REVISION_PARAM_RE = /\A[a-f0-9]*\z/i
       DEFAULT_LIST_LIMIT = 25
       MAX_LIST_LIMIT = 100
       DEFAULT_CONTENT_TYPE = 'application/octet-stream'
@@ -129,6 +133,12 @@ module RedmineMcp
         description: 'Wiki page title. Call redmine_list_wiki_pages when unknown.'
       }.freeze
 
+      REPOSITORY_ID_SCHEMA = {
+        type: 'string',
+        minLength: 1,
+        description: 'Repository identifier or numeric ID from redmine_list_repositories. When omitted, the project default repository is used.'
+      }.freeze
+
       EXPECTED_UPDATED_AT_SCHEMA = {
         type: 'string',
         format: 'date-time',
@@ -201,6 +211,158 @@ module RedmineMcp
 
       def any_boards_project_allows?(user, permission)
         any_project_module_allows?(user, permission, 'boards')
+      end
+
+      def repository_tools_visible?(user)
+        return false unless user&.active?
+        return true if user.admin?
+
+        Project.visible(user).exists?
+      end
+
+      def repository_read_allowed?(user, project)
+        return false unless project
+
+        project_permission_granted?(user, project, :view_changesets) ||
+          project_permission_granted?(user, project, :browse_repository)
+      end
+
+      def project_permission_granted?(user, project, permission)
+        return false unless user&.active? && project
+        return true if user.admin?
+
+        roles = user.roles_for_project(project)
+        return false unless roles
+
+        roles.any? do |role|
+          (project.is_public? || role.member?) && role.allowed_to?(permission)
+        end
+      end
+
+      def effective_repository_file_byte_limit
+        [
+          Setting.file_max_size_displayed.to_i.kilobyte,
+          MAX_REPOSITORY_FILE_BYTES,
+        ].min
+      end
+
+      def effective_repository_diff_line_limit
+        [
+          Setting.diff_max_lines_displayed.to_i,
+          MAX_REPOSITORY_DIFF_LINES,
+        ].min
+      end
+
+      def valid_revision_param?(repository, rev)
+        return true if rev.nil?
+        return true if REVISION_PARAM_RE.match?(rev.to_s)
+
+        repository&.valid_name?(rev)
+      end
+
+      def normalize_repository_path(path)
+        normalized = path.to_s.strip
+        return [nil, error_result(:error_mcp_repository_path_not_allowed)] if normalized.start_with?('/')
+        return [nil, error_result(:error_mcp_repository_path_not_allowed)] if normalized.include?('..')
+
+        [normalized, nil]
+      end
+
+      def find_project_repository(project, repository_id)
+        repository = if repository_id.present?
+                       # rubocop:disable Rails/DynamicFindBy
+                       project.repositories.find_by_identifier_param(repository_id.to_s)
+                       # rubocop:enable Rails/DynamicFindBy
+                     else
+                       project.repository || project.repositories.first
+                     end
+        return [nil, error_result(:error_mcp_repository_not_found)] unless repository
+
+        [repository, nil]
+      end
+
+      def resolve_revision(repository, rev)
+        resolved = rev.to_s.strip.presence
+        if resolved.blank?
+          resolved, err = repository_default_branch(repository)
+          return [nil, err] if err
+        end
+        return [nil, error_result(:error_mcp_invalid_revision)] unless valid_revision_param?(repository, resolved)
+
+        [resolved, nil]
+      end
+
+      def repository_default_branch(repository)
+        [repository.default_branch, nil]
+      rescue Redmine::Scm::Adapters::CommandFailed => e
+        [nil, scm_command_error(e)]
+      end
+
+      def resolve_revision_to(repository, rev_to)
+        return [nil, nil] if rev_to.blank?
+
+        resolved = rev_to.to_s.strip.presence
+        return [nil, error_result(:error_mcp_invalid_revision)] unless valid_revision_param?(repository, resolved)
+
+        [resolved, nil]
+      end
+
+      def repository_text_entry?(content, path)
+        return false unless utf8_content?(content)
+        return false if Redmine::Scm::Adapters::ScmData.binary?(content)
+        return true if Redmine::MimeType.is_type?('text', path)
+
+        true
+      end
+
+      def utf8_content?(content)
+        content.to_s.dup.force_encoding(Encoding::UTF_8).valid_encoding?
+      end
+
+      def truncate_repository_diff(lines)
+        line_limit = effective_repository_diff_line_limit
+        byte_limit = MAX_REPOSITORY_DIFF_BYTES
+        total_lines = lines.size
+        total_bytes = lines.join.bytesize
+        selected = []
+        selected_bytes = 0
+        truncated = false
+
+        lines.each do |line|
+          break if selected.size >= line_limit
+
+          line_bytes = line.bytesize
+          if selected_bytes + line_bytes > byte_limit && selected.any?
+            truncated = true
+            break
+          end
+          if selected_bytes + line_bytes > byte_limit
+            truncated = true
+            break
+          end
+
+          selected << line
+          selected_bytes += line_bytes
+        end
+
+        truncated = true if selected.size < total_lines
+
+        {
+          diff: selected.join,
+          truncated: truncated,
+          total_lines: total_lines,
+          returned_lines: selected.size,
+          total_bytes: total_bytes,
+          returned_bytes: selected_bytes
+        }
+      end
+
+      def scm_command_error(exception)
+        RedmineMcp::Logger.warn("SCM command failed: #{exception.class}: #{exception.message}")
+        mcp_error(
+          code: 'REDMINE_API_ERROR',
+          message: I18n.t(:error_mcp_scm_command_failed)
+        )
       end
 
       def clamp_limit(value, default: DEFAULT_LIST_LIMIT, max: MAX_LIST_LIMIT)
@@ -418,6 +580,14 @@ module RedmineMcp
         error_mcp_project_id_or_login_required: 'VALIDATION_ERROR',
         error_mcp_wiki_not_enabled: 'INVALID_STATE',
         error_mcp_boards_not_enabled: 'INVALID_STATE',
+        error_mcp_repository_not_enabled: 'INVALID_STATE',
+        error_mcp_repository_not_found: 'NOT_FOUND',
+        error_mcp_revision_not_found: 'NOT_FOUND',
+        error_mcp_repository_path_not_found: 'NOT_FOUND',
+        error_mcp_repository_path_not_allowed: 'VALIDATION_ERROR',
+        error_mcp_invalid_revision: 'VALIDATION_ERROR',
+        error_mcp_repository_file_too_large: 'FILE_TOO_LARGE',
+        error_mcp_scm_command_failed: 'REDMINE_API_ERROR',
         error_mcp_wiki_page_exists: 'CONFLICT',
         error_mcp_wiki_rename_failed: 'VALIDATION_ERROR',
         error_mcp_attachment_not_readable: 'NOT_FOUND',

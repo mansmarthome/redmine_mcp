@@ -133,8 +133,7 @@ module RedmineMcp
       USER_LIST_PROPS = USER_MEMBER_PROPS.merge(created_on: N::DATETIME).freeze
 
       LIST_NAMED = N.list_output(NAMED_REF_PROPS).freeze
-      LIST_USERS = N.list_output(USER_MEMBER_PROPS).freeze
-      LIST_ALL_USERS = N.list_output(USER_LIST_PROPS).freeze
+      LIST_USERS = N.list_output(USER_LIST_PROPS).freeze
       LIST_GROUPS = LIST_NAMED
       LIST_PROJECTS = N.list_output(
         id: N::ID,
@@ -156,7 +155,8 @@ module RedmineMcp
         parent: N::PROJECT_REF,
         subprojects: {type: 'array', items: N::PROJECT_REF},
         custom_fields: {type: 'array', items: N.open_object(id: N::ID, name: N::STRING, value: N::JSON_VALUE)},
-        last_activity_date: N::DATETIME
+        last_activity_date: N::DATETIME,
+        enabled_modules: N::STRING_ARRAY
       ).freeze
       LIST_CUSTOM_FIELDS = N.list_output(
         id: N::ID,
@@ -284,7 +284,7 @@ module RedmineMcp
       LIST_RELATIONS = N.list_output(RELATION_PROPS).freeze
       RELATION = N.object_output(RELATION_PROPS).freeze
       DELETED_RELATION = N.object_output(deleted_relation_id: N::ID).freeze
-      WATCHER = N.object_output(issue_id: N::ID, principal_id: N::ID, user_id: N::ID).freeze
+      WATCHER = N.object_output(issue_id: N::ID, principal_id: N::ID).freeze
       JOURNAL = N.object_output(JOURNAL_PROPS).freeze
       NOTE_PRIVACY = N.object_output(journal_id: N::ID, private_notes: N::BOOLEAN).freeze
       LIST_JOURNALS = N.list_output(JOURNAL_PROPS).freeze
@@ -330,13 +330,6 @@ module RedmineMcp
         name: N::STRING,
         active: N::BOOLEAN,
         is_default: N::BOOLEAN
-      ).freeze
-      IMPORT_TIME_ENTRIES = N.object_output(
-        total: N::ID,
-        succeeded: N::ID,
-        failed: N::ID,
-        created: {type: 'array', items: N.open_object(TIME_ENTRY_PROPS)},
-        errors: {type: 'array', items: N::REST_OBJECT_SCHEMA}
       ).freeze
       LIST_TRACKERS = N.list_output(id: N::ID, name: N::STRING, description: N::STRING).freeze
       LIST_PROJECT_TRACKERS = LIST_NAMED
@@ -385,6 +378,119 @@ module RedmineMcp
           attachments: {type: 'array', items: N.open_object(ATTACHMENT_PROPS)},
           attachments_pagination: NESTED_PAGINATION
         )
+      ).freeze
+      REPOSITORY_SUMMARY_PROPS = {
+        id: N::ID,
+        identifier: N::NULLABLE_STRING,
+        scm_type: N::STRING,
+        is_default: N::BOOLEAN,
+        name: N::STRING
+      }.freeze
+      REPOSITORY_SUMMARY_REQUIRED = %w[id identifier scm_type is_default name].freeze
+      REPOSITORY_DATETIME = {type: 'string', format: 'date-time'}.freeze
+      REPOSITORY_KIND = {type: 'string', enum: %w[file dir]}.freeze
+      REVISION_SUMMARY_PROPS = {
+        revision: N::STRING,
+        scmid: N::NULLABLE_STRING,
+        committer: N::STRING,
+        committed_on: REPOSITORY_DATETIME,
+        comments_preview: N::STRING,
+        user: N::USER_REF
+      }.freeze
+      REVISION_SUMMARY_REQUIRED = %w[revision scmid committer committed_on comments_preview user].freeze
+      REVISION_REF_PROPS = {
+        revision: N::STRING,
+        scmid: N::NULLABLE_STRING
+      }.freeze
+      REVISION_REF_REQUIRED = %w[revision scmid].freeze
+      REVISION_REF_SCHEMA = N.open_object(REVISION_REF_PROPS).merge(required: REVISION_REF_REQUIRED).freeze
+      REVISION_ISSUE_PROPS = {
+        id: N::ID,
+        subject: N::STRING
+      }.freeze
+      REVISION_ISSUE_REQUIRED = %w[id subject].freeze
+      REVISION_ISSUE_SCHEMA = N.open_object(REVISION_ISSUE_PROPS).merge(required: REVISION_ISSUE_REQUIRED).freeze
+      FILE_CHANGE_PROPS = {
+        action: N::STRING,
+        path: N::STRING,
+        from_path: N::NULLABLE_STRING,
+        from_revision: N::NULLABLE_STRING
+      }.freeze
+      FILE_CHANGE_REQUIRED = %w[action path from_path from_revision].freeze
+      FILE_CHANGE_SCHEMA = N.open_object(FILE_CHANGE_PROPS).merge(required: FILE_CHANGE_REQUIRED).freeze
+      REPOSITORY_ENTRY_LASTREV_PROPS = {
+        revision: N::STRING,
+        scmid: N::NULLABLE_STRING,
+        committed_on: REPOSITORY_DATETIME,
+        author: N::STRING
+      }.freeze
+      REPOSITORY_ENTRY_LASTREV_REQUIRED = %w[revision scmid committed_on author].freeze
+      REPOSITORY_ENTRY_LASTREV_SCHEMA = N.open_object(REPOSITORY_ENTRY_LASTREV_PROPS)
+                                         .merge(required: REPOSITORY_ENTRY_LASTREV_REQUIRED).freeze
+      REPOSITORY_ENTRY_PROPS = {
+        name: N::STRING,
+        path: N::STRING,
+        kind: REPOSITORY_KIND,
+        size: N::NULLABLE_INTEGER,
+        lastrev: REPOSITORY_ENTRY_LASTREV_SCHEMA
+      }.freeze
+      REPOSITORY_ENTRY_REQUIRED = %w[name path kind size].freeze
+      REPOSITORY_ENTRY_SCHEMA = N.open_object(REPOSITORY_ENTRY_PROPS).merge(required: REPOSITORY_ENTRY_REQUIRED).freeze
+      LIST_REPOSITORIES = N.list_output(
+        REPOSITORY_SUMMARY_PROPS,
+        required: REPOSITORY_SUMMARY_REQUIRED
+      ).freeze
+      REPOSITORY = N.object_output(
+        REPOSITORY_SUMMARY_PROPS.merge(default_branch: N::NULLABLE_STRING),
+        required: REPOSITORY_SUMMARY_REQUIRED
+      ).freeze
+      LIST_REVISIONS = N.list_output(
+        REVISION_SUMMARY_PROPS,
+        required: REVISION_SUMMARY_REQUIRED
+      ).freeze
+      REVISION = N.object_output(
+        REVISION_SUMMARY_PROPS.merge(
+          comments: N::STRING,
+          parents: {type: 'array', items: REVISION_REF_SCHEMA},
+          children: {type: 'array', items: REVISION_REF_SCHEMA},
+          issues: {type: 'array', items: REVISION_ISSUE_SCHEMA},
+          project: N::PROJECT_REF,
+          file_changes: {type: 'array', items: FILE_CHANGE_SCHEMA},
+          file_changes_pagination: NESTED_PAGINATION
+        ),
+        required: REVISION_SUMMARY_REQUIRED + %w[comments parents children issues project]
+      ).freeze
+      REPOSITORY_FILE = N.object_output(
+        {
+          kind: REPOSITORY_KIND,
+          path: N::STRING,
+          revision: N::NULLABLE_STRING,
+          name: N::NULLABLE_STRING,
+          size: N::NULLABLE_INTEGER,
+          content_type: N::NULLABLE_STRING,
+          is_binary: {type: %w[boolean null]},
+          content_available: {type: %w[boolean null]},
+          encoding: N::NULLABLE_STRING,
+          content: N::NULLABLE_STRING,
+          content_base64: N::NULLABLE_STRING,
+          entries: {type: 'array', items: REPOSITORY_ENTRY_SCHEMA},
+          entries_pagination: NESTED_PAGINATION
+        },
+        required: %w[kind path revision]
+      ).freeze
+      REPOSITORY_DIFF = N.object_output(
+        {
+          path: N::STRING,
+          revision: N::STRING,
+          revision_to: N::NULLABLE_STRING,
+          diff: N::STRING,
+          truncated: N::BOOLEAN,
+          total_lines: N::ID,
+          returned_lines: N::ID,
+          total_bytes: N::ID,
+          returned_bytes: N::ID
+        },
+        required: %w[path revision revision_to diff truncated total_lines returned_lines total_bytes returned_bytes]
       ).freeze
       LIST_BOARDS = N.list_output(
         id: N::ID,
@@ -436,7 +542,12 @@ module RedmineMcp
         filename: N::STRING,
         content_type: N::NULLABLE_STRING,
         size: N::ID,
-        content_url: N::NULLABLE_STRING
+        content_url: N::NULLABLE_STRING,
+        content_base64: {
+          type: 'string',
+          contentEncoding: 'base64',
+          description: 'Attachment content encoded as Base64. Present only when include_content is true.'
+        }
       ).freeze
       DELETED_VERSION = N.object_output(version_id: N::ID).freeze
       DELETED_WIKI = N.object_output(title: N::STRING).freeze
@@ -445,6 +556,7 @@ module RedmineMcp
         server_version: N::STRING,
         read_only_mode: N::BOOLEAN,
         auth_mode: N::STRING,
+        text_formatting: N::STRING,
         current_user: N.open_object(id: N::ID, login: N::STRING, name: N::STRING),
         capabilities: {type: 'object', additionalProperties: true}
       ).freeze

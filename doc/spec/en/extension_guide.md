@@ -97,7 +97,7 @@ name: 'search_issues'
 The full MCP name is generated automatically:
 
 ```text
-redmine_<plugin_id>_<name>
+redmine_<plugin_id without leading redmine_>_<name>
 ```
 
 For tools, prefer `name` in the `<verb>_<entity>` format.
@@ -117,7 +117,9 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-If `plugin_id` already starts with `redmine_` (for example `redmine_advanced_checklists`), the full name still follows `redmine_<plugin_id>_<name>`: `redmine_redmine_advanced_checklists_<name>`.
+If `plugin_id` starts with `redmine_` (for example `redmine_advanced_checklists`), the leading `redmine_` is dropped in the tool name: `redmine_advanced_checklists_<name>`. The former doubled name `redmine_redmine_advanced_checklists_<name>` stays a callable alias and is not published in `tools/list`.
+
+The full tool name must be at most 46 characters (MCP clients prepend their own `mcp__<server>__` prefix and providers cap function names at 64). A longer tool is not registered and an error is logged. When renaming a tool, pass the old short name in `aliases: ['old_name']` so the old name keeps working in `tools/call` but stays out of `tools/list`. See [04-extensions.md](04-extensions.md).
 
 For resources, use a unique URI, for example:
 

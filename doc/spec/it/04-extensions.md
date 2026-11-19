@@ -37,7 +37,7 @@ Fornire un unico approccio all'integrazione dei plugin Redmine con l'AI senza du
 
 - Un plugin di estensione può registrare un numero qualsiasi di strumenti.
 - Ogni strumento ha: nome, descrizione, schema di input, schema di output, requisito di permesso e handler.
-- Nome completo dello strumento: `redmine_<plugin_id>_<name>`, ad esempio `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Nome completo dello strumento: `redmine_<plugin_id>_<name>`, ad esempio `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - I nomi di strumento duplicati sono vietati.
 - Uno strumento compare in MCP solo per gli utenti con i permessi corrispondenti.
 - Uno strumento di estensione legato alle issue può richiedere un modulo di progetto Redmine abilitato (l'identificatore del modulo non deve necessariamente corrispondere all'id del plugin). In `tools/list`, tale strumento è visibile se l'utente ha il permesso dichiarato in almeno un progetto visibile con quel modulo. Senza requisito di modulo, è sufficiente il permesso in almeno un progetto visibile. La chiamata verifica comunque l'issue specifica: visibilità, permesso nel suo progetto e modulo abilitato; altrimenti la risposta è "not found".

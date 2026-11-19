@@ -55,16 +55,40 @@ module RedmineMcp
       result
     end
 
+    # MCP clients prepend `mcp__<server>__` and providers cap function names at 64 (SPEC 04-extensions).
+    MAX_FULL_NAME_LENGTH = 46
+    FULL_NAME_PATTERN = /\A[A-Za-z0-9_-]+\z/
+
+    def self.name_prefix_for(plugin_id)
+      id = plugin_id.to_s
+      return 'redmine_' if id == 'redmine'
+
+      "redmine_#{id.delete_prefix('redmine_').presence || id}_"
+    end
+
     def self.full_name_for(plugin_id, name)
-      if plugin_id.to_sym == :redmine
-        "redmine_#{name}"
-      else
-        "redmine_#{plugin_id}_#{name}"
-      end
+      "#{name_prefix_for(plugin_id)}#{name}"
+    end
+
+    # Name with the doubled `redmine_redmine_` prefix used before the prefix rule changed.
+    def self.legacy_full_name_for(plugin_id, name)
+      legacy = "redmine_#{plugin_id}_#{name}"
+      legacy unless plugin_id.to_s == 'redmine' || legacy == full_name_for(plugin_id, name)
+    end
+
+    def self.full_name_error(full_name)
+      return "tool name #{full_name} contains characters outside [A-Za-z0-9_-]" unless full_name.match?(FULL_NAME_PATTERN)
+      return if full_name.length <= MAX_FULL_NAME_LENGTH
+
+      "tool name #{full_name} is #{full_name.length} characters long, limit is #{MAX_FULL_NAME_LENGTH}"
     end
 
     def full_name
       self.class.full_name_for(plugin_id, name)
+    end
+
+    def legacy_full_name
+      self.class.legacy_full_name_for(plugin_id, name)
     end
 
     def mutating?
@@ -87,7 +111,24 @@ module RedmineMcp
       end
     end
 
+    def authorization_error(user, input = {})
+      missing_project_error = missing_specified_project_error(user, input)
+      return missing_project_error if missing_project_error
+      return nil if allowed_for?(user, input)
+
+      Core::Helpers.error_result(:error_mcp_permission_denied)
+    end
+
   private
+
+    def missing_specified_project_error(user, input)
+      return nil unless Core::Helpers.project_specified_in_input?(input)
+
+      ref = Core::Helpers.extract_project_ref(input)
+      return nil if Core::Helpers.find_project(user, ref)
+
+      Core::Helpers.error_result(:error_mcp_project_not_found)
+    end
 
     def resolve_project(user, input)
       project = Core::Helpers.extract_project_ref(input)

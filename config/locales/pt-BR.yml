@@ -9,13 +9,18 @@ pt-BR:
     - Se a busca semântica for pedida mas capabilities.issue_search.semantic.available for false, use redmine_search_issues e deixe claro que o fallback é léxico, não semântico.
     - Use redmine_search_all para descobrir vários tipos de recurso, incluindo wiki, quando capabilities.issue_search.cross_resource estiver disponível.
     - Se project for desconhecido, chame primeiro redmine_list_projects. project deve ser uma string como "1" ou "ecookbook", não um número JSON.
-    - Antes de redmine_create_issue ou redmine_update_issue, chame redmine_get_issue_form_options se IDs de tracker, situação, atribuído ou campos personalizados forem desconhecidos. Dry-run opcional: redmine_validate_issue_create / redmine_validate_issue_update.
+    - Antes de redmine_create_issue ou redmine_update_issue, chame redmine_get_issue_form_options se IDs de tracker, situação, atribuído ou campos personalizados forem desconhecidos.
     - Para adicionar um comentário sem alterar campos da tarefa, use redmine_add_issue_note. Para observadores, use redmine_add_issue_watcher ou redmine_remove_issue_watcher.
-    - Use redmine_list_users para busca de usuários do projeto; redmine_admin_list_users apenas para o diretório global de administrador.
+    - Use redmine_list_users para busca de usuários do projeto; sem project, o administrador pode filtrar o diretório global com name ou group_id.
     - Solicite redmine_get_private_notes ou include_journals somente quando o usuário precisar explicitamente de diários ou notas privadas.
     - Tools destrutivas como redmine_delete_issue podem exigir confirmação; se INVALID_STATE for retornado, tente de novo com os parâmetros confirm_* pedidos.
     - Ao citar uma tarefa ao usuário, copie o campo url do resultado da tool. Não invente um hostname.
     - Além das core tools redmine_*, tools de plugins instalados podem aparecer com seus próprios prefixos.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Escreva descrições de tarefas, notas e texto Wiki em CommonMark Markdown (formatação de texto ativa do Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Escreva descrições de tarefas, notas e texto Wiki em Textile (formatação de texto ativa do Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_none: Escreva descrições de tarefas, notas e texto Wiki como texto simples (a formatação de texto do Redmine está desativada).
+  text_redmine_mcp_server_instructions_text_formatting_other: No Redmine, o formato personalizado %{format_name} está ativo. Se a sintaxe for desconhecida, esclareça-a antes de adicionar marcação.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: O formato de texto configurado %{format_name} não está disponível (o plugin que o fornecia pode ter sido removido). Escreva descrições de tarefas, notas e texto Wiki como texto simples.
   text_redmine_mcp_server_instructions_read_only: As operações de escrita estão bloqueadas porque o modo somente leitura do MCP está ativado.
   label_redmine_mcp_enabled: Ativar MCP
   label_redmine_mcp_read_only: Modo somente leitura
@@ -52,6 +57,14 @@ pt-BR:
   error_mcp_boards_not_enabled: O módulo de fóruns não está ativado neste projeto
   error_mcp_board_not_found: Fórum não encontrado
   error_mcp_board_message_not_found: Mensagem do fórum não encontrada
+  error_mcp_repository_not_enabled: O módulo de repositório não está ativado neste projeto
+  error_mcp_repository_not_found: Repositório não encontrado
+  error_mcp_revision_not_found: Revisão não encontrada
+  error_mcp_repository_path_not_found: Caminho do repositório não encontrado
+  error_mcp_repository_path_not_allowed: Caminho do repositório não permitido
+  error_mcp_invalid_revision: Parâmetro de revisão inválido
+  error_mcp_repository_file_too_large: Arquivo do repositório excede o tamanho permitido
+  error_mcp_scm_command_failed: "Falha no comando SCM"
   error_mcp_query_not_found: Consulta salva não encontrada
   error_mcp_activity_window_too_long: A janela de atividade deve ter no máximo 90 dias
   error_mcp_wiki_not_found: Wiki não encontrada

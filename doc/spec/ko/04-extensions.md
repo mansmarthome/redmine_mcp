@@ -37,7 +37,7 @@ MCP 서버를 중복하거나 Redmine MCP 코드를 변경하지 않고 Redmine 
 
 - 확장 플러그인은 임의 수의 도구를 등록할 수 있습니다.
 - 각 도구에는 name, description, input schema, output schema, permission requirement, handler가 있습니다.
-- 전체 도구 이름: `redmine_<plugin_id>_<name>`. 예: `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- 전체 도구 이름: `redmine_<plugin_id>_<name>`. 예: `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - 중복 도구 이름은 금지됩니다.
 - 도구는 해당 권한을 가진 사용자에게만 MCP에 나타납니다.
 - 이슈 범위 확장 도구는 활성화된 Redmine 프로젝트 모듈을 요구할 수 있습니다(모듈 식별자가 플러그인 id와 일치할 필요는 없음). `tools/list`에서 그러한 도구는 사용자가 해당 모듈이 있는 최소 하나의 보이는 프로젝트에서 선언된 권한을 가질 때 보입니다. 모듈 요구사항이 없으면 최소 하나의 보이는 프로젝트에서 권한이 있으면 충분합니다. 호출 시 특정 이슈를 확인합니다: 가시성, 프로젝트 권한, 활성화된 모듈; 그렇지 않으면 "not found" 응답.

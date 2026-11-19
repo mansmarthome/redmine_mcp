@@ -9,13 +9,18 @@ pl:
     - Jeśli potrzebne jest wyszukiwanie semantyczne, ale capabilities.issue_search.semantic.available jest false, użyj redmine_search_issues i zaznacz, że to wyszukiwanie leksykalne, nie semantyczne.
     - Do odkrywania wielu typów zasobów, w tym wiki, użyj redmine_search_all, gdy dostępne jest capabilities.issue_search.cross_resource.
     - Gdy project jest nieznany, najpierw wywołaj redmine_list_projects. project musi być łańcuchem, np. "1" lub "ecookbook", nie liczbą JSON.
-    - Przed redmine_create_issue lub redmine_update_issue wywołaj redmine_get_issue_form_options, gdy nieznane są ID trackerów, statusów, wykonawców lub pól niestandardowych. Opcjonalny dry-run: redmine_validate_issue_create / redmine_validate_issue_update.
+    - Przed redmine_create_issue lub redmine_update_issue wywołaj redmine_get_issue_form_options, gdy nieznane są ID trackerów, statusów, wykonawców lub pól niestandardowych.
     - Aby dodać komentarz bez zmiany pól zgłoszenia, użyj redmine_add_issue_note. Obserwatorów zmieniaj przez redmine_add_issue_watcher lub redmine_remove_issue_watcher.
-    - Do wyszukiwania użytkowników projektu użyj redmine_list_users; redmine_admin_list_users tylko do globalnego katalogu administratora.
+    - Do wyszukiwania użytkowników projektu użyj redmine_list_users; bez project administrator może filtrować globalny katalog przez name lub group_id.
     - Żądaj redmine_get_private_notes lub include_journals tylko gdy użytkownik wyraźnie potrzebuje dzienników lub prywatnych notatek.
     - Narzędzia destrukcyjne, np. redmine_delete_issue, mogą wymagać potwierdzenia; przy INVALID_STATE powtórz z żądanymi parametrami confirm_*.
     - Cytując zgłoszenie użytkownikowi, skopiuj pole url z wyniku narzędzia. Nie wymyślaj nazwy hosta.
     - Oprócz narzędzi bazowych redmine_* mogą pojawić się narzędzia zainstalowanych wtyczek z własnymi prefiksami.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Opisy zgłoszeń, notatki i tekst Wiki pisz w CommonMark Markdown (aktywny format tekstu Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Opisy zgłoszeń, notatki i tekst Wiki pisz w Textile (aktywny format tekstu Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_none: Opisy zgłoszeń, notatki i tekst Wiki pisz zwykłym tekstem (formatowanie tekstu Redmine jest wyłączone).
+  text_redmine_mcp_server_instructions_text_formatting_other: W Redmine aktywny jest własny format %{format_name}. Jeśli jego składnia jest nieznana, wyjaśnij ją przed dodaniem znaczników.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: Skonfigurowany format tekstu %{format_name} jest niedostępny (wtyczka, która go zapewniała, mogła zostać usunięta). Opisy zgłoszeń, notatki i tekst Wiki pisz zwykłym tekstem.
   text_redmine_mcp_server_instructions_read_only: Operacje zapisu są obecnie zablokowane, ponieważ włączony jest tryb tylko do odczytu MCP.
   label_redmine_mcp_enabled: Włącz MCP
   label_redmine_mcp_read_only: Tryb tylko do odczytu
@@ -52,6 +57,14 @@ pl:
   error_mcp_boards_not_enabled: Moduł forów nie jest włączony dla tego projektu
   error_mcp_board_not_found: Nie znaleziono forum
   error_mcp_board_message_not_found: Nie znaleziono wiadomości forum
+  error_mcp_repository_not_enabled: Moduł repozytorium nie jest włączony dla tego projektu
+  error_mcp_repository_not_found: Nie znaleziono repozytorium
+  error_mcp_revision_not_found: Nie znaleziono wersji
+  error_mcp_repository_path_not_found: Nie znaleziono ścieżki repozytorium
+  error_mcp_repository_path_not_allowed: Ścieżka repozytorium jest niedozwolona
+  error_mcp_invalid_revision: Nieprawidłowy parametr wersji
+  error_mcp_repository_file_too_large: Plik repozytorium przekracza dozwolony rozmiar
+  error_mcp_scm_command_failed: "Polecenie SCM nie powiodło się"
   error_mcp_query_not_found: Nie znaleziono zapisanego zapytania
   error_mcp_activity_window_too_long: Okno aktywności nie może przekraczać 90 dni
   error_mcp_wiki_not_found: Nie znaleziono wiki

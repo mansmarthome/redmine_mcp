@@ -166,7 +166,7 @@ Der Server stellt Tools für Projekte, Vorgänge, Benutzer, Zeiterfassung, Wiki,
 ### Zuverlässigkeit von Operationen
 
 - `expected_updated_at` — bei sensiblen Update-/Delete-Operationen.
-- `idempotency_key` — bei `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — bei `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Beschränkungen
 
@@ -190,7 +190,7 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | Tool | Beschreibung |
 |------|-------------|
 | `list_projects` | Projekte auflisten |
-| `get_project` | Projektdetails |
+| `get_project` | Projektdetails; optional `include_modules` für Module |
 | `list_project_issue_custom_fields` | Benutzerdefinierte Vorgangsfelder des Projekts |
 | `summarize_project_status` | Vom Server erstellte Projektmetrik-Zusammenfassung für N Tage |
 | `list_project_activities` | Projektaktivitäts-Feed (Ereignisse, keine Zeitbuchungs-Aktivitätstypen) |
@@ -202,7 +202,6 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `list_project_members` | Projektmitglieder und ihre Rollen |
 | `list_project_member_candidates` | Benutzer und Gruppen, die zum Projekt hinzugefügt werden können |
 | `list_roles` | Im Projekt verwaltbare Rollen |
-| `get_project_modules` | Aktivierte Projektmodule |
 | `add_project_member` | Mitglied hinzufügen |
 | `update_project_member` | Mitgliedsrollen ändern |
 | `remove_project_member` | Mitglied entfernen |
@@ -214,10 +213,7 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `get_issue` | Vorgangsdetails (Journal, Anhänge, benutzerdefinierte Felder usw.) |
 | `list_issues` | Vorgänge mit Filtern und Paginierung auflisten |
 | `search_issues` | Textsuche über Vorgänge |
-| `run_issue_query` | Gespeicherte Vorgangsabfrage ausführen |
 | `get_issue_form_options` | Zulässige Werte der Vorgangsformularfelder (ein Aufruf) |
-| `validate_issue_create` | Vorgangserstellungs-Parameter ohne Schreiben validieren |
-| `validate_issue_update` | Vorgangsaktualisierungs-Parameter ohne Schreiben validieren |
 | `create_issue` | Vorgang erstellen |
 | `update_issue` | Vorgangsattribute und Anhänge aktualisieren |
 | `add_issue_note` | Kommentar zu einem Vorgang hinzufügen (optional mit Anhängen) |
@@ -226,11 +222,9 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `list_issue_relations` | Vorgangsbeziehungen auflisten |
 | `create_issue_relation` | Beziehung zwischen Vorgängen erstellen |
 | `delete_issue_relation` | Vorgangsbeziehung löschen |
-| `list_subtasks` | Unteraufgaben |
 | `add_issue_watcher` | Beobachter hinzufügen |
 | `remove_issue_watcher` | Beobachter entfernen |
 | `update_issue_note` | Journaleintrag bearbeiten |
-| `set_issue_note_private` | Privatsphäre des Journaleintrags ändern |
 | `get_private_notes` | Nur private Kommentare |
 | `list_issue_categories` | Vorgangskategorien des Projekts |
 | `create_issue_category` | Kategorie erstellen |
@@ -252,19 +246,16 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `create_time_entry` | Zeiteintrag erstellen |
 | `update_time_entry` | Zeiteintrag aktualisieren |
 | `list_time_entry_activities` | Aktivitätstypen für Zeitbuchungen (nicht der Projekt-Ereignis-Feed) |
-| `import_time_entries` | Massenimport von Zeiteinträgen |
 
 ### Referenzdaten
 
 | Tool | Beschreibung |
 |------|-------------|
-| `list_trackers` | Alle Tracker |
-| `list_project_trackers` | Projekt-Tracker |
+| `list_trackers` | Vorgangstracker (alle oder mit `project` — nach Projekt) |
 | `list_issue_statuses` | Vorgangsstatus |
 | `list_issue_priorities` | Vorgangsprioritäten |
-| `admin_list_users` | Benutzer mit Filtern (nur Administrator) |
 | `get_current_user` | Aktueller Benutzer |
-| `list_queries` | Gespeicherte Abfragen (Metadaten; Ausführung über `run_issue_query`) |
+| `list_queries` | Gespeicherte Abfragen (Metadaten; Ausführung über `list_issues` mit `query_id`) |
 
 ### Suche und Wiki
 
@@ -277,6 +268,17 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `update_wiki_page` | Wiki-Seite aktualisieren |
 | `delete_wiki_page` | Wiki-Seite löschen |
 | `rename_wiki_page` | Wiki-Seite umbenennen |
+
+### Repository / SCM
+
+| Tool | Beschreibung |
+|------|-------------|
+| `list_repositories` | SCM-Repositories eines Projekts |
+| `get_repository` | Repository-Metadaten und Standard-Branch |
+| `list_revisions` | Gecachte Changesets (paginiert) |
+| `get_revision` | Ein Changeset mit optionalen Dateiänderungen |
+| `get_repository_file` | Verzeichnislisting oder Dateiinhalt |
+| `get_repository_diff` | Unified Diff mit MCP-Größenlimits |
 
 ### Foren
 
@@ -293,8 +295,7 @@ Bei einem prozesslokalen Cache gelten Rate-Limiting- und Idempotenzgarantien nur
 | `list_project_files` | Projektdateien |
 | `upload_file` | Datei hochladen |
 | `delete_attachment` | Anhang löschen |
-| `get_attachment` | Anhang-Metadaten und `content_url` |
-| `download_attachment` | Anhang-Inhalt (`content_base64`, bis 10 MiB) |
+| `get_attachment` | Anhang-Metadaten, `content_url`, optional `content_base64` (`include_content`, bis 10 MiB) |
 
 ### Hilfsfunktionen
 

@@ -9,13 +9,18 @@ ru:
     - Если нужен семантический поиск, но capabilities.issue_search.semantic.available = false, используйте fallback на redmine_search_issues и явно укажите, что это лексический, а не семантический поиск.
     - Для поиска по нескольким типам ресурсов, включая wiki, используйте redmine_search_all, если capabilities.issue_search.cross_resource доступен.
     - Если project неизвестен, сначала вызовите redmine_list_projects. project должен быть строкой, например "1" или "ecookbook", а не JSON-числом.
-    - Перед redmine_create_issue или redmine_update_issue вызывайте redmine_get_issue_form_options, если ID трекера, статуса, исполнителя или настраиваемых полей ещё не известны. Опциональная проверка без записи: redmine_validate_issue_create / redmine_validate_issue_update.
+    - Перед redmine_create_issue или redmine_update_issue вызывайте redmine_get_issue_form_options, если ID трекера, статуса, исполнителя или настраиваемых полей ещё не известны.
     - Чтобы добавить комментарий без изменения полей задачи, используйте redmine_add_issue_note. Наблюдателей меняйте через redmine_add_issue_watcher или redmine_remove_issue_watcher.
-    - Для поиска пользователей в проекте используйте redmine_list_users; redmine_admin_list_users — только для глобального admin-каталога.
+    - Для поиска пользователей в проекте используйте redmine_list_users; без project администратор может фильтровать глобальный каталог через name или group_id.
     - redmine_get_private_notes или include_journals запрашивайте только когда пользователю явно нужны журналы или приватные комментарии.
     - Для destructive-tools, например redmine_delete_issue, может потребоваться подтверждение; при INVALID_STATE повторите вызов с нужными confirm_* параметрами.
     - При цитировании задачи пользователю копируйте поле url из результата tool. Не выдумывайте hostname.
     - Помимо redmine_* core tools могут быть доступны tools установленных плагинов со своими префиксами.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Пишите описания задач, заметки и текст Wiki в формате CommonMark Markdown (активный формат разметки Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Пишите описания задач, заметки и текст Wiki в формате Textile (активный формат разметки Redmine).
+  text_redmine_mcp_server_instructions_text_formatting_none: Пишите описания задач, заметки и текст Wiki обычным текстом (форматирование текста Redmine отключено).
+  text_redmine_mcp_server_instructions_text_formatting_other: В Redmine активен пользовательский формат %{format_name}. Если его синтаксис неизвестен, уточните его перед добавлением разметки.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: Настроенный формат %{format_name} недоступен (плагин, который его предоставлял, мог быть удалён). Пишите описания задач, заметки и текст Wiki обычным текстом.
   text_redmine_mcp_server_instructions_read_only: Операции записи сейчас заблокированы, так как включён режим read-only MCP.
   label_redmine_mcp_enabled: Включить MCP
   label_redmine_mcp_read_only: Режим read-only
@@ -52,6 +57,14 @@ ru:
   error_mcp_boards_not_enabled: Модуль форумов не включён для этого проекта
   error_mcp_board_not_found: Доска не найдена
   error_mcp_board_message_not_found: Сообщение форума не найдено
+  error_mcp_repository_not_enabled: Модуль репозитория не включён для этого проекта
+  error_mcp_repository_not_found: Репозиторий не найден
+  error_mcp_revision_not_found: Ревизия не найдена
+  error_mcp_repository_path_not_found: Путь в репозитории не найден
+  error_mcp_repository_path_not_allowed: Путь в репозитории недопустим
+  error_mcp_invalid_revision: Недопустимый параметр ревизии
+  error_mcp_repository_file_too_large: Файл репозитория превышает допустимый размер
+  error_mcp_scm_command_failed: Ошибка SCM-команды
   error_mcp_query_not_found: Сохранённый запрос не найден
   error_mcp_activity_window_too_long: Окно активности не должно превышать 90 дней
   error_mcp_wiki_not_found: Wiki не найдена

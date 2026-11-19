@@ -9,13 +9,18 @@ ko:
     - 의미 검색이 필요하지만 capabilities.issue_search.semantic.available이 false이면 redmine_search_issues로 돌아가고 어휘 검색임을 밝힙니다.
     - capabilities.issue_search.cross_resource가 있으면 위키를 포함한 여러 자원 탐색에 redmine_search_all을 사용합니다.
     - project를 모르면 먼저 redmine_list_projects를 호출합니다. project는 "1" 또는 "ecookbook" 같은 문자열이며 JSON 숫자가 아닙니다.
-    - redmine_create_issue 또는 redmine_update_issue 전에 트래커, 상태, 담당자, 사용자 정의 필드 ID를 모르면 redmine_get_issue_form_options를 호출합니다. 선택적 dry-run: redmine_validate_issue_create / redmine_validate_issue_update.
+    - redmine_create_issue 또는 redmine_update_issue 전에 트래커, 상태, 담당자, 사용자 정의 필드 ID를 모르면 redmine_get_issue_form_options를 호출합니다.
     - 일감 필드를 바꾸지 않고 댓글만 추가하려면 redmine_add_issue_note를 사용합니다. 지켜보는 사람은 redmine_add_issue_watcher 또는 redmine_remove_issue_watcher입니다.
-    - 프로젝트 사용자 조회에는 redmine_list_users를, 관리자 전역 디렉터리에는 redmine_admin_list_users만 사용합니다.
+    - 프로젝트 사용자 조회에는 redmine_list_users; project 없이 관리자는 name 또는 group_id로 전역 디렉터리를 필터링할 수 있습니다.
     - 저널이나 비공개 메모가 명시적으로 필요할 때만 redmine_get_private_notes 또는 include_journals를 요청합니다.
     - redmine_delete_issue 같은 파괴적 도구는 확인이 필요할 수 있습니다. INVALID_STATE이면 요청된 confirm_*로 다시 호출합니다.
     - 사용자에게 일감을 인용할 때는 tool 결과의 url 필드를 복사하세요. hostname을 지어내지 마세요.
     - redmine_* 핵심 도구 외에 설치된 플러그인 도구가 자체 접두사로 나타날 수 있습니다.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: 일감 설명, 메모, Wiki 본문은 CommonMark Markdown으로 작성하세요(활성 Redmine 텍스트 서식).
+  text_redmine_mcp_server_instructions_text_formatting_textile: 일감 설명, 메모, Wiki 본문은 Textile로 작성하세요(활성 Redmine 텍스트 서식).
+  text_redmine_mcp_server_instructions_text_formatting_none: 일감 설명, 메모, Wiki 본문은 일반 텍스트로 작성하세요(Redmine 텍스트 서식이 꺼져 있음).
+  text_redmine_mcp_server_instructions_text_formatting_other: Redmine에서 사용자 지정 서식 %{format_name}이(가) 활성입니다. 문법을 모르면 마크업을 넣기 전에 확인하세요.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: 구성된 텍스트 서식 %{format_name}을(를) 사용할 수 없습니다(제공하던 플러그인이 제거되었을 수 있음). 일감 설명, 메모, Wiki 본문은 일반 텍스트로 작성하세요.
   text_redmine_mcp_server_instructions_read_only: MCP 읽기 전용 모드가 켜져 있어 쓰기 작업이 현재 차단되어 있습니다.
   label_redmine_mcp_enabled: MCP 사용
   label_redmine_mcp_read_only: 읽기 전용 모드
@@ -52,6 +57,14 @@ ko:
   error_mcp_boards_not_enabled: 이 프로젝트에서는 게시판 모듈이 꺼져 있습니다
   error_mcp_board_not_found: 게시판을 찾을 수 없습니다
   error_mcp_board_message_not_found: 게시판 메시지를 찾을 수 없습니다
+  error_mcp_repository_not_enabled: 이 프로젝트에서는 저장소 모듈이 꺼져 있습니다
+  error_mcp_repository_not_found: 저장소를 찾을 수 없습니다
+  error_mcp_revision_not_found: 리비전을 찾을 수 없습니다
+  error_mcp_repository_path_not_found: 저장소 경로를 찾을 수 없습니다
+  error_mcp_repository_path_not_allowed: 저장소 경로가 허용되지 않습니다
+  error_mcp_invalid_revision: 잘못된 리비전 매개변수
+  error_mcp_repository_file_too_large: 저장소 파일이 허용 크기를 초과합니다
+  error_mcp_scm_command_failed: "SCM 명령 실패"
   error_mcp_query_not_found: 저장된 질의를 찾을 수 없습니다
   error_mcp_activity_window_too_long: 활동 기간은 90일을 넘을 수 없습니다
   error_mcp_wiki_not_found: 위키를 찾을 수 없습니다

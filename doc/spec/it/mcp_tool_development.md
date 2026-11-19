@@ -419,7 +419,7 @@ Le descrizioni di strumenti simili devono spiegare esplicitamente la differenza.
 Ad esempio:
 
 - `redmine_list_project_members` — membri di un progetto specifico e i loro ruoli;
-- `redmine_admin_list_users` — elenco globale degli utenti dell'installazione, richiede diritti amministrativi.
+- `redmine_list_users` senza `project` — directory utenti globale (solo admin); con `project` — membri del progetto.
 
 ### 5.5. Istruzioni a livello server
 
@@ -428,11 +428,11 @@ Il server PUÒ pubblicare brevi istruzioni generali che spiegano le relazioni tr
 Le istruzioni devono aggiungere contesto non presente nelle descrizioni individuali e fare riferimento agli strumenti con nomi completi (§5.2.1), ad esempio:
 
 ```text
-Use redmine_search_issues before redmine_get_issue when the issue ID is unknown.
-Before creating or updating an issue, call redmine_list_project_trackers and
-redmine_list_project_issue_custom_fields when their IDs are not already known.
-Private notes must only be requested when the user explicitly needs them and has
-the required permission.
+Usare redmine_search_issues prima di redmine_get_issue quando l'ID dell'issue è sconosciuto.
+Prima di creare o aggiornare un'issue, chiamare redmine_list_trackers (con `project` opzionale) e
+redmine_list_project_issue_custom_fields quando i relativi ID non sono già noti.
+Le note private devono essere richieste solo quando l'utente ne ha esplicitamente bisogno e ha
+l'autorizzazione richiesta.
 ```
 
 VIETATO:
@@ -1463,7 +1463,7 @@ Esempio abbreviato di strumento di scrittura con `title` obbligatorio e `outputS
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1728,6 @@ seguire:
 5. rimuovere l'alias dopo il periodo concordato (non prima della prossima versione major, salvo periodo concordato separatamente);
 6. inviare `notifications/tools/list_changed` se il server dichiara `listChanged`.
 
-Esempi attuali (vedere [03-core-tools.md](03-core-tools.md)): `redmine_list_all_users` → `redmine_admin_list_users`; `redmine_list_files` → `redmine_list_project_files`; `redmine_delete_file` → `redmine_delete_attachment`; `redmine_get_server_info` → `redmine_get_mcp_info`. Un alias è accettato in `tools/call` e non è pubblicato in `tools/list`.
-
 ### 15.3. Modifica descrizioni
 
 La descrizione influenza la selezione strumento del modello ed è considerata un cambiamento comportamentale. Su cambiamento sostanziale della descrizione DOVREBBE revisionare gli esempi di selezione LLM o condurre una revisione di selezione ripetuta.
@@ -1834,7 +1832,7 @@ Se il modello può soddisfare l'intenzione con strumento separato senza indovina
 
 ### 18.3. Denominazione
 
-- Il nome DEVE iniziare con `redmine_`; poi — `plugin_id` e `<verb>_<entity>`: `redmine_redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
+- Il nome DEVE iniziare con `redmine_`; poi — `plugin_id` e `<verb>_<entity>`: `redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
 - Verbi e divieto `manage_*` — secondo §4.2 e §3.1.
 - Non copiare nomi strumenti core e non pubblicare secondo strumento con stessa intenzione sotto nome diverso.
 
@@ -2030,7 +2028,7 @@ Riferimento `redmine_create_issue`. Quando cambiano formato errore o envelope, a
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2054,7 @@ Riferimento `redmine_create_issue`. Quando cambiano formato errore o envelope, a
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

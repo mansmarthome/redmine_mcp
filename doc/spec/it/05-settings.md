@@ -74,11 +74,14 @@ Le impostazioni sono disponibili in **Amministrazione → Plugin → Redmine MCP
 - Un flag di caricamento automatico delle estensioni precedentemente salvato viene ignorato: il caricamento delle estensioni segue Abilita MCP.
 - Un livello di logging precedentemente salvato viene ignorato e rimosso al salvataggio delle impostazioni.
 - Con la modalità Read-only abilitata, gli strumenti di scrittura restano in `tools/list` (se l'utente ha i permessi) ma restituiscono un errore alla chiamata; le azioni di lettura degli strumenti combinati continuano a funzionare.
+- Se il database non è ancora stato creato o la tabella delle impostazioni non è disponibile, la lettura delle impostazioni del plugin è trattata come «impostazioni non disponibili»: MCP è considerato disabilitato e il caricamento automatico delle estensioni non viene eseguito. Ciò non deve interrompere l’avvio di Redmine né comandi come `db:create`.
+- Altri errori di connessione al database non sono mascherati come «nessuna impostazione»: solo l’assenza di database/tabella settings produce un fallback sicuro a impostazioni vuote; altri errori di connessione non sono sostituiti da questo comportamento.
 
 ## Gestione degli errori
 
 - Gli errori delle impostazioni non devono bloccare l'avvio di Redmine.
 - Gli errori di logging non influiscono sull'elaborazione delle richieste MCP.
+- L’assenza del database durante la lettura delle impostazioni del plugin non interrompe l’inizializzazione dell’applicazione né la creazione del database.
 
 ## Scenari di test
 
@@ -89,3 +92,4 @@ Le impostazioni sono disponibili in **Amministrazione → Plugin → Redmine MCP
 5. La pagina delle impostazioni mostra i nomi solo dei plugin installati con integrazione MCP; ognuno ha una casella di controllo.
 6. Un plugin senza integrazione MCP non viene mostrato nella pagina delle impostazioni.
 7. Quando MCP è disabilitato, le estensioni di altri plugin non vengono caricate all'avvio.
+8. Se manca il database, la lettura delle impostazioni del plugin non interrompe boot né `db:create`; MCP resta disabilitato finché le impostazioni non sono disponibili.

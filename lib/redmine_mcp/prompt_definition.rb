@@ -36,11 +36,11 @@ module RedmineMcp
     end
 
     def full_name
-      if plugin_id == :redmine
-        "redmine_#{name}"
-      else
-        "redmine_#{plugin_id}_#{name}"
-      end
+      ToolDefinition.full_name_for(plugin_id, name)
+    end
+
+    def legacy_full_name
+      ToolDefinition.legacy_full_name_for(plugin_id, name)
     end
 
     def allowed_for?(user, input = {})

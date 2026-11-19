@@ -31,6 +31,7 @@ module RedmineMcp
       @tool_extensions = Hash.new { |hash, key| hash[key] = [] }
       @resources = []
       @prompts = {}
+      @prompt_aliases = {}
       @hooks = Hash.new { |hash, key| hash[key] = [] }
       @capabilities = {}
     end
@@ -50,9 +51,14 @@ module RedmineMcp
           annotations: options.fetch(:annotations, {})
         )
         key = tool.full_name
+        name_error = ToolDefinition.full_name_error(key)
+        if name_error
+          Logger.error("skipped tool #{plugin_id}.#{name}: #{name_error}")
+          next
+        end
         raise ArgumentError, "tool already registered: #{key}" if @tools.key?(key) || @tool_aliases.key?(key)
 
-        alias_keys = alias_names.map { |alias_name| ToolDefinition.full_name_for(plugin_id, alias_name) }
+        alias_keys = tool_alias_keys(tool, alias_names)
         alias_keys.each do |alias_key|
           raise ArgumentError, "tool already registered: #{alias_key}" if @tools.key?(alias_key) || @tool_aliases.key?(alias_key)
         end
@@ -65,6 +71,8 @@ module RedmineMcp
         Logger.info("registered tool #{key} from #{plugin_id}")
         tool
       end
+      return unless definition
+
       emit(:tool_registered, tool: definition)
       definition
     rescue StandardError => e
@@ -148,6 +156,8 @@ module RedmineMcp
         raise ArgumentError, "prompt already registered: #{key}" if @prompts.key?(key)
 
         @prompts[key] = prompt
+        legacy_key = prompt.legacy_full_name
+        @prompt_aliases[legacy_key] = key if legacy_key && !@prompts.key?(legacy_key)
         Logger.info("registered prompt #{key} from #{plugin_id}")
         prompt
       end
@@ -238,7 +248,7 @@ module RedmineMcp
     end
 
     def find_prompt(key)
-      @prompts[resolve_tool_key(key)]
+      @prompts[resolve_tool_key(key)] || @prompts[@prompt_aliases[key.to_s]]
     end
 
     def to_mcp_tools(user)
@@ -288,10 +298,21 @@ module RedmineMcp
       matching = @tools.keys.select { |key| key.end_with?("_#{name}") }
       return matching.first if matching.one?
 
-      alias_matching = @tool_aliases.keys.select { |key| key.end_with?("_#{name}") }
-      return @tool_aliases[alias_matching.first] if alias_matching.one?
+      alias_targets = @tool_aliases.filter_map { |key, target| target if key.end_with?("_#{name}") }.uniq
+      return alias_targets.first if alias_targets.one?
 
       name
+    end
+
+    # Declared aliases plus the legacy `redmine_redmine_*` names; none of them is listed in tools/list.
+    def tool_alias_keys(tool, alias_names)
+      plugin_id = tool.plugin_id
+      keys = [tool.legacy_full_name]
+      alias_names.each do |alias_name|
+        keys << ToolDefinition.full_name_for(plugin_id, alias_name)
+        keys << ToolDefinition.legacy_full_name_for(plugin_id, alias_name)
+      end
+      keys.compact.uniq
     end
 
     def alias_keys_for(definition)
@@ -333,16 +354,13 @@ module RedmineMcp
         limit_error = RequestLimits.check_before_call!(user: current_user, args: args)
         return finish.call(**call_meta, payload: limit_error) if limit_error
 
-        unless definition.allowed_for?(current_user, args)
-          Logger.warn("permission denied for tool #{call_name}, user=#{current_user&.login}")
-          payload = ToolResponse.failure(
-            code: 'FORBIDDEN',
-            message: I18n.t(:error_mcp_permission_denied)
-          )
-          return finish.call(**call_meta, payload: payload)
+        access_error = definition.authorization_error(current_user, args)
+        if access_error
+          Logger.warn("authorization denied for tool #{call_name}, user=#{current_user&.login}")
+          return finish.call(**call_meta, payload: ToolResponse.from_handler_result(access_error))
         end
 
-        context = context_hash.merge(user: current_user, correlation_id: correlation_id)
+        context = context_hash.merge(user: current_user, correlation_id: correlation_id, tool_name: call_name)
         validation_error = InputValidator.validate(input_schema, args)
         return finish.call(**call_meta, payload: validation_error) if validation_error
 

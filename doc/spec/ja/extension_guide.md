@@ -117,7 +117,7 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-`plugin_id` が既に `redmine_` で始まる場合（例: `redmine_advanced_checklists`）、完全名は引き続き `redmine_<plugin_id>_<name>` に従います: `redmine_redmine_advanced_checklists_<name>`。
+`plugin_id` が既に `redmine_` で始まる場合（例: `redmine_advanced_checklists`）、完全名は引き続き `redmine_<plugin_id>_<name>` に従います: `redmine_advanced_checklists_<name>`。
 
 リソースには一意の URI を使用（例:
 

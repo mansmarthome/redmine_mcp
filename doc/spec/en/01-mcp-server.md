@@ -27,6 +27,7 @@ Allow external AI clients to interact with Redmine using the standard MCP protoc
 - Tool responses return a JSON envelope in `structuredContent` (`ok`, `data` or `error`) and a short text representation in `content` (JSON string on success, error message on failure).
 - The API key is accepted from the `X-Redmine-API-Key` header only. The JSON-RPC body is not used for authentication and is not parsed before the request size check.
 - HTTP body size is limited before JSON parsing: when the limit is exceeded, the request is rejected and the MCP transport does not read the body.
+- In `initialize`, server instructions include a general hint: write issue descriptions, notes, and Wiki text using the active Redmine text formatting. For `common_mark` — CommonMark Markdown; for `textile` — Textile; when formatting is disabled (empty string) — plain text. For a third-party format registered by a plugin in Redmine, instructions include a short hint with the active format identifier and a request to clarify its syntax if unknown; the syntax itself comes from that format’s documentation, and the current code is also available via `redmine_get_mcp_info`. If settings still name a format that is not registered (for example after the plugin was removed), instructions report that the format is unavailable and suggest plain text — matching Redmine display without available formatting. The format value is read when instructions are built for the request and is not cached for the whole application process.
 
 ## Edge cases
 
@@ -34,6 +35,8 @@ Allow external AI clients to interact with Redmine using the standard MCP protoc
 - In stateless mode, `GET` requests for a standalone SSE stream are not supported (HTTP 405) — this is expected behavior.
 - When operating behind a load balancer, sticky sessions are not required.
 - The tool list may differ between users depending on permissions.
+- After the text formatting setting changes in administration without restarting Redmine, a new `initialize` gets the updated hint in instructions; the current format code is also available via `redmine_get_mcp_info` without reconnecting.
+- If settings still contain the format identifier of a removed plugin, `initialize` does not treat it as active and suggests plain text.
 
 ## Error handling
 
@@ -56,3 +59,6 @@ Allow external AI clients to interact with Redmine using the standard MCP protoc
 9. `resources/read` with a URI for an inaccessible project does not return resource content.
 10. `prompts/get` with an inaccessible project argument denies access.
 11. `tools/call` with empty args, an extra field, or a wrong argument type returns `isError: true` and `structuredContent.error.code` `VALIDATION_ERROR`.
+12. `initialize` instructions mention the active text formatting (CommonMark, Textile, plain text, or a registered third-party format identifier) for issue descriptions, notes, and Wiki.
+13. After text formatting changes without restarting Redmine, a new `initialize` reflects the new format in instructions.
+14. If settings name an unregistered format, `initialize` reports that it is unavailable and suggests plain text.

@@ -9,13 +9,18 @@ en:
     - If semantic search is requested but capabilities.issue_search.semantic.available is false, fall back to redmine_search_issues and clearly state that the fallback is lexical rather than semantic.
     - Use redmine_search_all for cross-resource discovery including wiki pages when capabilities.issue_search.cross_resource is available.
     - When project is unknown, call redmine_list_projects first. project must be a string such as "1" or "ecookbook", not a JSON number.
-    - Before redmine_create_issue or redmine_update_issue, call redmine_get_issue_form_options when tracker, status, assignee, or custom field IDs are not already known. Optional dry-run: redmine_validate_issue_create / redmine_validate_issue_update.
+    - Before redmine_create_issue or redmine_update_issue, call redmine_get_issue_form_options when tracker, status, assignee, or custom field IDs are not already known.
     - To add a comment without changing issue fields, use redmine_add_issue_note. To change watchers, use redmine_add_issue_watcher or redmine_remove_issue_watcher.
-    - Use redmine_list_users for project-scoped user lookup; use redmine_admin_list_users only for admin global directory queries.
+    - Use redmine_list_users for project-scoped user lookup; without project, administrators may filter the global directory with name or group_id.
     - Request redmine_get_private_notes or include_journals only when the user explicitly needs journal or private note content.
     - Destructive tools such as redmine_delete_issue may require explicit confirmation parameters; retry with the requested confirm_* flags when INVALID_STATE is returned.
     - When citing an issue to the user, copy the url field from the tool result. Do not invent a hostname.
     - Additional tools from installed Redmine plugins may appear with their own prefixes alongside redmine_* core tools.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Write issue descriptions, notes, and Wiki page text using CommonMark Markdown (the active Redmine text formatting).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Write issue descriptions, notes, and Wiki page text using Textile (the active Redmine text formatting).
+  text_redmine_mcp_server_instructions_text_formatting_none: Write issue descriptions, notes, and Wiki page text as plain text (Redmine text formatting is disabled).
+  text_redmine_mcp_server_instructions_text_formatting_other: In Redmine, the custom format %{format_name} is active. If its syntax is unknown, clarify it before adding markup.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: The configured text format %{format_name} is not available (its plugin may have been removed). Write issue descriptions, notes, and Wiki page text as plain text.
   text_redmine_mcp_server_instructions_read_only: Write operations are currently blocked because MCP read-only mode is enabled.
   label_redmine_mcp_enabled: Enable MCP
   label_redmine_mcp_read_only: Read-only mode
@@ -52,6 +57,14 @@ en:
   error_mcp_boards_not_enabled: Boards module is not enabled for this project
   error_mcp_board_not_found: Board not found
   error_mcp_board_message_not_found: Board message not found
+  error_mcp_repository_not_enabled: Repository module is not enabled for this project
+  error_mcp_repository_not_found: Repository not found
+  error_mcp_revision_not_found: Revision not found
+  error_mcp_repository_path_not_found: Repository path not found
+  error_mcp_repository_path_not_allowed: Repository path is not allowed
+  error_mcp_invalid_revision: Invalid revision parameter
+  error_mcp_repository_file_too_large: Repository file exceeds maximum allowed size
+  error_mcp_scm_command_failed: SCM command failed
   error_mcp_query_not_found: Saved query not found
   error_mcp_activity_window_too_long: Activity window must be at most 90 days
   error_mcp_wiki_not_found: Wiki not found

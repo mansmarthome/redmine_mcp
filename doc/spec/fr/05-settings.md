@@ -74,11 +74,14 @@ Les paramètres sont disponibles dans **Administration → Plugins → Redmine M
 - Un flag de chargement automatique d'extensions précédemment sauvegardé est ignoré : le chargement des extensions suit Activer MCP.
 - Un niveau de journalisation précédemment sauvegardé est ignoré et supprimé lors de la sauvegarde des paramètres.
 - Avec le mode lecture seule activé, les outils d'écriture restent dans `tools/list` (si l'utilisateur a les permissions) mais retournent une erreur lors de l'appel ; les actions de lecture des outils combinés continuent de fonctionner.
+- Si la base de données n’a pas encore été créée ou si la table des paramètres est indisponible, la lecture des paramètres du plugin est traitée comme « paramètres indisponibles » : MCP est considéré comme désactivé et le chargement automatique des extensions ne s’exécute pas. Cela ne doit pas interrompre le démarrage de Redmine ni des commandes comme `db:create`.
+- Les autres erreurs de connexion à la base ne sont pas masquées en « pas de paramètres » : seule l’absence de base/table des paramètres donne un repli sûr vers des paramètres vides ; les autres échecs de connexion ne sont pas remplacés par ce comportement.
 
 ## Gestion des erreurs
 
 - Les erreurs de paramètres ne doivent pas bloquer le démarrage de Redmine.
 - Les erreurs de journalisation n'affectent pas le traitement des requêtes MCP.
+- L’absence de base de données lors de la lecture des paramètres du plugin n’interrompt ni l’initialisation de l’application ni la création de la base.
 
 ## Scénarios de test
 
@@ -89,3 +92,4 @@ Les paramètres sont disponibles dans **Administration → Plugins → Redmine M
 5. La page des paramètres affiche les noms uniquement des plugins installés avec intégration MCP ; chacun a une case à cocher.
 6. Un plugin sans intégration MCP n'est pas affiché sur la page des paramètres.
 7. Lorsque MCP est désactivé, les extensions d'autres plugins ne sont pas chargées au démarrage.
+8. En l’absence de base de données, la lecture des paramètres du plugin n’interrompt ni le démarrage ni `db:create` ; MCP reste désactivé jusqu’à ce que les paramètres soient disponibles.

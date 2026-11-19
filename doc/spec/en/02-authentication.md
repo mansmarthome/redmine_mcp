@@ -38,6 +38,9 @@ Ensure MCP does not bypass Redmine security and users can perform only actions a
 - A tool appears in `tools/list` only if the user has permission to use it.
 - Permissions are checked again when the tool is called.
 - Data is filtered by Redmine visibility rules (projects, issues, members).
+- If arguments explicitly include a `project` (id or identifier) that does not exist or is not visible to the current user, the call returns `NOT_FOUND` ("project not found") **before** the tool permission check. This applies to both symbol-permission and Proc-permission tools. An invisible project is treated the same as a missing one: a separate `FORBIDDEN` is not returned in this case.
+- If the project is found and visible but the user lacks permission for the operation on it — `FORBIDDEN`.
+- Calls without a `project` parameter are not affected by this rule.
 
 ### Resource and prompt permissions
 
@@ -61,6 +64,8 @@ Ensure MCP does not bypass Redmine security and users can perform only actions a
 | Invalid or missing API key | HTTP 401 |
 | No Use MCP permission | HTTP 403 |
 | No permission for a specific tool | Tool absent from `tools/list`; direct call — "Permission denied" error |
+| Arguments include a missing or invisible `project` | `NOT_FOUND` (project not found), before the tool permission check |
+| Project is visible but the operation permission is missing | `FORBIDDEN` |
 | Entity unavailable to user | Tool response with an error description (for example, "Issue not found") |
 
 ## Test scenarios
@@ -72,3 +77,4 @@ Ensure MCP does not bypass Redmine security and users can perform only actions a
 5. User sees in `tools/list` only tools they have permission for.
 6. Calling a tool for an inaccessible issue returns an error, not another user's data.
 7. An issue-scoped tool with a project module requirement is not visible in `tools/list` if the user has the permission but no visible project with the module enabled; it is visible if such a project exists.
+8. Calling a tool with an explicitly missing `project` (for example `list_trackers`, `get_project`) returns `NOT_FOUND`, not `FORBIDDEN`; an invisible foreign project also returns `NOT_FOUND`.

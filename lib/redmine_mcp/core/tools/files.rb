@@ -24,38 +24,6 @@ module RedmineMcp
     module Tools
       module Files
         PROJECT_FILE_CONTAINERS = %w[Project Version].freeze
-        DOWNLOAD_ATTACHMENT_DATA_SCHEMA = {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            attachment_id: {
-              type: 'integer',
-              minimum: 1,
-              description: 'Attachment ID.'
-            },
-            filename: {
-              type: 'string',
-              minLength: 1,
-              description: 'Original attachment filename.'
-            },
-            content_type: {
-              type: 'string',
-              minLength: 1,
-              description: "Attachment MIME type. Falls back to #{Helpers::DEFAULT_CONTENT_TYPE} when unknown."
-            },
-            size: {
-              type: 'integer',
-              minimum: 0,
-              description: 'Attachment size in bytes.'
-            },
-            content_base64: {
-              type: 'string',
-              contentEncoding: 'base64',
-              description: 'Attachment content encoded as Base64.'
-            }
-          },
-          required: %w[attachment_id filename content_type size content_base64]
-        }.freeze
 
       module_function
 
@@ -64,7 +32,6 @@ module RedmineMcp
           register_upload_file
           register_delete_attachment
           register_get_attachment
-          register_download_attachment
         end
 
         def register_list_project_files
@@ -85,7 +52,6 @@ module RedmineMcp
             output_schema: RedmineMcp::Core::OutputSchemas::LIST_FILES,
             permission: :view_files,
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            aliases: ['list_files'],
             handler: method(:list_project_files)
           )
         end
@@ -141,7 +107,6 @@ module RedmineMcp
             output_schema: RedmineMcp::Core::OutputSchemas::DELETED_FILE,
             permission: ->(user, args, _project) { delete_attachment_allowed?(user, args) },
             annotations: Helpers::DELETE_ANNOTATIONS,
-            aliases: ['delete_file'],
             handler: method(:delete_attachment)
           )
         end
@@ -152,7 +117,12 @@ module RedmineMcp
             name: 'get_attachment',
             title: 'Get attachment',
             description: "Return metadata and a downloadable content_url for one attachment by attachment_id.\n\n" \
-                         "Does not return file bytes. Use redmine_download_attachment for Base64-encoded content.\n\n" \
+                         "By default does not return file bytes. Pass include_content=true to also return Base64-encoded content in content_base64.\n\n" \
+                         "When include_content is true, attachments larger than #{Helpers::MAX_DOWNLOAD_MIB} MiB are rejected with FILE_TOO_LARGE. " \
+                         "Base64 expands payload size by about one third (~#{(Helpers::MAX_DOWNLOAD_MIB * 4 / 3.0).round} MiB JSON for a #{Helpers::MAX_DOWNLOAD_MIB} MiB file). " \
+                         "The size limit applies only when include_content is true.\n\n" \
+                         'Decode content_base64 locally when the attachment needs to be read, parsed, or processed as a file. ' \
+                         'Does not expose filesystem paths or increment the attachment download counter. ' \
                          "Works for project, version, issue, wiki, and document attachments visible to the current user.\n" \
                          "Obtain attachment_id from redmine_get_issue or redmine_get_wiki_page with include_attachments=true, or redmine_list_project_files.\n" \
                          'Does not modify Redmine.',
@@ -163,6 +133,10 @@ module RedmineMcp
                   minimum: 1,
                   description: 'Attachment ID from redmine_get_issue/redmine_get_wiki_page with include_attachments=true, or redmine_list_project_files.',
                   examples: [1]
+                },
+                include_content: {
+                  type: 'boolean',
+                  description: 'When true, include file content as content_base64. Default: false.'
                 }
               },
               required: ['attachment_id']
@@ -171,38 +145,6 @@ module RedmineMcp
             permission: ->(user, args, _project) { get_attachment_allowed?(user, args) },
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
             handler: method(:get_attachment)
-          )
-        end
-
-        def register_download_attachment
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'download_attachment',
-            title: 'Download attachment',
-            description: "Return one Redmine attachment as metadata and Base64-encoded content.\n\n" \
-                         "Decode content_base64 locally when the attachment needs to be read, parsed, or processed as a file.\n\n" \
-                         "Attachments larger than #{Helpers::MAX_DOWNLOAD_MIB} MiB are rejected with FILE_TOO_LARGE. " \
-                         "Base64 expands payload size by about one third (~#{(Helpers::MAX_DOWNLOAD_MIB * 4 / 3.0).round} MiB JSON for a #{Helpers::MAX_DOWNLOAD_MIB} MiB file).\n" \
-                         'Does not expose filesystem paths or increment the attachment download counter. ' \
-                         "Does not modify Redmine.\n\n" \
-                         "For metadata and content_url only, use redmine_get_attachment.\n" \
-                         'Obtain attachment_id from redmine_get_issue or redmine_get_wiki_page with ' \
-                         'include_attachments=true, or from redmine_list_project_files.',
-            input_schema: {
-              properties: {
-                attachment_id: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Attachment ID from redmine_get_issue/redmine_get_wiki_page with include_attachments=true, or redmine_list_project_files.',
-                  examples: [1]
-                }
-              },
-              required: ['attachment_id']
-            },
-            output_schema: SchemaNormalizer.envelope_output(DOWNLOAD_ATTACHMENT_DATA_SCHEMA),
-            permission: ->(user, args, _project) { get_attachment_allowed?(user, args) },
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:download_attachment)
           )
         end
 
@@ -293,21 +235,22 @@ module RedmineMcp
           return Helpers.error_result(:error_mcp_attachment_not_found) unless attachment
           return Helpers.error_result(:error_mcp_attachment_not_readable) unless attachment.readable?
 
-          {
+          result = {
             attachment_id: attachment.id,
             filename: attachment.filename,
             content_type: attachment.content_type,
             size: attachment.filesize,
             content_url: Helpers.attachment_url(attachment)
           }
+          return result unless Helpers.truthy?(args[:include_content])
+
+          content_payload = attachment_content_payload(attachment)
+          return content_payload if content_payload.is_a?(Hash) && content_payload[:error].present?
+
+          result.merge(content_payload)
         end
 
-        def download_attachment(args, context)
-          user = context[:user]
-          attachment = find_visible_attachment(user, args[:attachment_id])
-          return Helpers.error_result(:error_mcp_attachment_not_found) unless attachment
-          return Helpers.error_result(:error_mcp_attachment_not_readable) unless attachment.readable?
-
+        def attachment_content_payload(attachment)
           disk_path = attachment.diskfile
           disk_size = File.size(disk_path)
           too_large = attachment_download_too_large(disk_size)
@@ -318,8 +261,6 @@ module RedmineMcp
           return too_large if too_large
 
           {
-            attachment_id: attachment.id,
-            filename: attachment.filename,
             content_type: attachment.content_type.presence || Helpers::DEFAULT_CONTENT_TYPE,
             size: content.bytesize,
             content_base64: Base64.strict_encode64(content)

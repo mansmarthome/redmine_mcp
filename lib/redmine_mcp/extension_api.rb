@@ -19,7 +19,7 @@
 
 module RedmineMcp
   module ExtensionApi
-    TOOL_OPTIONS = %i[title annotations].freeze
+    TOOL_OPTIONS = %i[title annotations aliases].freeze
     ISSUE_TOOL_OPTIONS = (%i[module_name issue_id_key input_schema] + TOOL_OPTIONS).freeze
     PROMPT_OPTIONS = %i[title description arguments permission meta project_resolver].freeze
     RESOURCE_OPTIONS = %i[title description mime_type permission project_resolver].freeze
@@ -67,7 +67,8 @@ module RedmineMcp
         title: options[:title],
         permission: permission,
         handler: handler,
-        annotations: options.fetch(:annotations, {})
+        annotations: options.fetch(:annotations, {}),
+        aliases: options.fetch(:aliases, [])
       )
     end
 
@@ -111,6 +112,7 @@ module RedmineMcp
         output_schema: output_schema,
         permission: issue_permission(permission, module_name: module_name),
         annotations: options.fetch(:annotations, {}),
+        aliases: options.fetch(:aliases, []),
         handler: lambda { |args, context|
           user = context[:user]
           issue = extension.find_accessible_issue(
@@ -138,7 +140,8 @@ module RedmineMcp
         output_schema: output_schema,
         permission: permission,
         handler: handler,
-        annotations: options.fetch(:annotations, {})
+        annotations: options.fetch(:annotations, {}),
+        aliases: options.fetch(:aliases, [])
       )
     end
 
@@ -259,10 +262,10 @@ module RedmineMcp
 
     def tool_full_name(name)
       name_str = name.to_s
-      prefix = plugin_id == :redmine ? 'redmine_' : "redmine_#{plugin_id}_"
-      return name_str if name_str.start_with?(prefix)
+      prefixes = [ToolDefinition.name_prefix_for(plugin_id), "redmine_#{plugin_id}_"].uniq
+      return name_str if prefixes.any? { |prefix| name_str.start_with?(prefix) }
 
-      "#{prefix}#{name_str}"
+      ToolDefinition.full_name_for(plugin_id, name_str)
     end
   end
 end

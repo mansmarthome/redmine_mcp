@@ -27,6 +27,7 @@ Permitir que clientes de IA externos interactúen con Redmine mediante el protoc
 - Las respuestas de herramientas devuelven un sobre JSON en `structuredContent` (`ok`, `data` o `error`) y una representación de texto breve en `content` (cadena JSON en caso de éxito, mensaje de error en caso de fallo).
 - La clave API solo se acepta desde la cabecera `X-Redmine-API-Key`. El cuerpo JSON-RPC no se usa para autenticación y no se analiza antes de la comprobación del tamaño de la solicitud.
 - El tamaño del cuerpo HTTP se limita antes del análisis JSON: cuando se supera el límite, la solicitud se rechaza y el transporte MCP no lee el cuerpo.
+- En `initialize`, las instrucciones del servidor incluyen una pista general: escribir descripciones de peticiones, notas y texto Wiki con el formato de texto activo de Redmine. Para `common_mark` — CommonMark Markdown; para `textile` — Textile; con el formato desactivado (cadena vacía) — texto plano. Para un formato de terceros registrado por un plugin, las instructions incluyen una pista breve con el identificador del formato activo y la petición de aclarar su sintaxis si se desconoce; la sintaxis en sí proviene de la documentación de ese formato, y el código actual también está disponible mediante `redmine_get_mcp_info`. Si en la configuración figura un formato no registrado (por ejemplo tras eliminar el plugin), las instructions indican que el formato no está disponible y proponen texto plano — como al mostrar en Redmine sin formato disponible. El valor del formato se lee al formar las instrucciones de la petición y no se almacena en caché para todo el proceso de la aplicación.
 
 ## Casos límite
 
@@ -34,6 +35,8 @@ Permitir que clientes de IA externos interactúen con Redmine mediante el protoc
 - En modo sin estado, las solicitudes `GET` para un flujo SSE independiente no son compatibles (HTTP 405) — es el comportamiento esperado.
 - Cuando se opera detrás de un balanceador de carga, no se requieren sesiones persistentes (sticky sessions).
 - La lista de herramientas puede diferir entre usuarios según los permisos.
+- Tras cambiar el formato de texto en administración sin reiniciar Redmine, un nuevo `initialize` recibe la pista actualizada en instructions; el código de formato actual también está disponible mediante `redmine_get_mcp_info` sin reconectar.
+- Si en la configuración permanece el identificador de formato de un plugin eliminado, `initialize` no lo trata como activo y propone texto plano.
 
 ## Manejo de errores
 
@@ -56,3 +59,6 @@ Permitir que clientes de IA externos interactúen con Redmine mediante el protoc
 9. `resources/read` con un URI de un proyecto inaccesible no devuelve contenido del recurso.
 10. `prompts/get` con un argumento de proyecto inaccesible deniega el acceso.
 11. `tools/call` con argumentos vacíos, un campo adicional o un tipo de argumento incorrecto devuelve `isError: true` y `structuredContent.error.code` `VALIDATION_ERROR`.
+12. Las instructions de `initialize` mencionan el formato de texto activo (CommonMark, Textile, texto plano o identificador de formato de terceros registrado) para descripciones de peticiones, notas y Wiki.
+13. Tras cambiar el formato de texto sin reiniciar Redmine, un nuevo `initialize` refleja el nuevo formato en instructions.
+14. Si la configuración nombra un formato no registrado, `initialize` indica que no está disponible y propone texto plano.

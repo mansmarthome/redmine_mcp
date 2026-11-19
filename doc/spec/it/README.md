@@ -166,7 +166,7 @@ Il server fornisce strumenti per progetti, issue, utenti, registrazione del temp
 ### Affidabilità delle operazioni
 
 - `expected_updated_at` — sulle operazioni sensibili di update/delete.
-- `idempotency_key` — su `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — su `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Limiti
 
@@ -190,7 +190,7 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | Strumento | Descrizione |
 |------|-------------|
 | `list_projects` | Elenco progetti |
-| `get_project` | Dettagli progetto |
+| `get_project` | Dettagli progetto; opzionalmente `include_modules` per i moduli |
 | `list_project_issue_custom_fields` | Campi personalizzati issue del progetto |
 | `summarize_project_status` | Riepilogo metriche del progetto generato dal server per N giorni |
 | `list_project_activities` | Feed attività del progetto (eventi, non tipi di attività di registrazione tempo) |
@@ -202,7 +202,6 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `list_project_members` | Membri del progetto e i loro ruoli |
 | `list_project_member_candidates` | Utenti e gruppi che possono essere aggiunti al progetto |
 | `list_roles` | Ruoli gestibili nel progetto |
-| `get_project_modules` | Moduli del progetto abilitati |
 | `add_project_member` | Aggiungere un membro |
 | `update_project_member` | Modificare i ruoli di un membro |
 | `remove_project_member` | Rimuovere un membro |
@@ -214,10 +213,7 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `get_issue` | Dettagli issue (journal, allegati, campi personalizzati, ecc.) |
 | `list_issues` | Elenco issue con filtri e paginazione |
 | `search_issues` | Ricerca testuale sulle issue |
-| `run_issue_query` | Eseguire una query issue salvata |
 | `get_issue_form_options` | Valori consentiti dei campi del form issue (una sola chiamata) |
-| `validate_issue_create` | Validare i parametri di creazione issue senza scrivere |
-| `validate_issue_update` | Validare i parametri di aggiornamento issue senza scrivere |
 | `create_issue` | Creare un'issue |
 | `update_issue` | Aggiornare attributi e allegati dell'issue |
 | `add_issue_note` | Aggiungere un commento a un'issue (opzionalmente con allegati) |
@@ -226,11 +222,9 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `list_issue_relations` | Elenco relazioni dell'issue |
 | `create_issue_relation` | Creare una relazione tra issue |
 | `delete_issue_relation` | Eliminare una relazione tra issue |
-| `list_subtasks` | Sottoattività |
 | `add_issue_watcher` | Aggiungere un osservatore |
 | `remove_issue_watcher` | Rimuovere un osservatore |
 | `update_issue_note` | Modificare una voce del journal |
-| `set_issue_note_private` | Modificare la privacy di una voce del journal |
 | `get_private_notes` | Solo commenti privati |
 | `list_issue_categories` | Categorie issue del progetto |
 | `create_issue_category` | Creare una categoria |
@@ -252,19 +246,16 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `create_time_entry` | Creare una voce di tempo |
 | `update_time_entry` | Aggiornare una voce di tempo |
 | `list_time_entry_activities` | Tipi di attività per la registrazione del tempo (non il feed eventi del progetto) |
-| `import_time_entries` | Importazione massiva di voci di tempo |
 
 ### Dati di riferimento
 
 | Strumento | Descrizione |
 |------|-------------|
-| `list_trackers` | Tutti i tracker |
-| `list_project_trackers` | Tracker del progetto |
+| `list_trackers` | Tracker delle issue (tutti oppure con `project` — per progetto) |
 | `list_issue_statuses` | Stati delle issue |
 | `list_issue_priorities` | Priorità delle issue |
-| `admin_list_users` | Utenti con filtri (solo amministratore) |
 | `get_current_user` | Utente corrente |
-| `list_queries` | Query salvate (metadati; l'esecuzione è `run_issue_query`) |
+| `list_queries` | Query salvate (metadati; l'esecuzione è `list_issues` con `query_id`) |
 
 ### Ricerca e Wiki
 
@@ -277,6 +268,17 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `update_wiki_page` | Aggiornare una pagina Wiki |
 | `delete_wiki_page` | Eliminare una pagina Wiki |
 | `rename_wiki_page` | Rinominare una pagina Wiki |
+
+### Repository / SCM
+
+| Strumento | Descrizione |
+|------|-------------|
+| `list_repositories` | Repository SCM di un progetto |
+| `get_repository` | Metadati del repository e branch predefinito |
+| `list_revisions` | Changeset in cache (paginati) |
+| `get_revision` | Un changeset con modifiche ai file opzionali |
+| `get_repository_file` | Elenco directory o contenuto file |
+| `get_repository_diff` | Diff unificato con limiti di dimensione MCP |
 
 ### Forum
 
@@ -293,8 +295,7 @@ Con una cache locale al processo, le garanzie di rate limiting e idempotenza si 
 | `list_project_files` | File del progetto |
 | `upload_file` | Caricare un file |
 | `delete_attachment` | Eliminare un allegato |
-| `get_attachment` | Metadati dell'allegato e `content_url` |
-| `download_attachment` | Contenuto dell'allegato (`content_base64`, fino a 10 MiB) |
+| `get_attachment` | Metadati allegato, `content_url`, `content_base64` opzionale (`include_content`, fino a 10 MiB) |
 
 ### Utilità
 
