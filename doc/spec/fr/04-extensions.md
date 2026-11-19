@@ -37,7 +37,7 @@ Fournir une approche unique pour intégrer les plugins Redmine avec l'IA sans du
 
 - Un plugin d'extension peut enregistrer un nombre quelconque d'outils.
 - Chaque outil a : nom, description, schéma d'entrée, schéma de sortie, exigence de permission et handler.
-- Nom complet de l'outil : `redmine_<plugin_id>_<name>`, par exemple `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Nom complet de l'outil : `redmine_<plugin_id>_<name>`, par exemple `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - Les noms d'outils en double sont interdits.
 - Un outil apparaît dans MCP uniquement pour les utilisateurs avec les permissions correspondantes.
 - Un outil d'extension lié à un ticket peut exiger un module de projet Redmine activé (l'identifiant du module ne doit pas correspondre à l'id du plugin). Dans `tools/list`, un tel outil est visible si l'utilisateur a la permission déclarée dans au moins un projet visible avec ce module. Sans exigence de module, la permission dans au moins un projet visible suffit. L'appel vérifie encore le ticket spécifique : visibilité, permission dans son projet et module activé ; sinon la réponse est « not found ».

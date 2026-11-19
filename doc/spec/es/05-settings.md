@@ -74,11 +74,14 @@ La configuración está disponible en **Administración → Plugins → Redmine 
 - Se ignora una bandera de carga automática de extensiones guardada previamente: la carga de extensiones depende de Enable MCP.
 - Se ignora y elimina un nivel de registro guardado previamente al guardar la configuración.
 - Con el modo de solo lectura habilitado, las herramientas de escritura siguen en `tools/list` (si el usuario tiene permisos) pero devuelven un error al invocarlas; las acciones de lectura de herramientas combinadas siguen funcionando.
+- Si la base de datos aún no se ha creado o la tabla de ajustes no está disponible, la lectura de ajustes del plugin se trata como «ajustes no disponibles»: MCP se considera desactivado y no se ejecuta la carga automática de extensiones. Esto no debe interrumpir el arranque de Redmine ni comandos como `db:create`.
+- Otros errores de conexión a la base de datos no se enmascaran como «sin ajustes»: solo la ausencia de la base/tabla de ajustes produce un fallback seguro a ajustes vacíos; otros fallos de conexión no se sustituyen por este comportamiento.
 
 ## Manejo de errores
 
 - Los errores de configuración no deben bloquear el arranque de Redmine.
 - Los errores de registro no afectan al procesamiento de solicitudes MCP.
+- La ausencia de base de datos al leer ajustes del plugin no interrumpe la inicialización de la aplicación ni la creación de la base de datos.
 
 ## Escenarios de prueba
 
@@ -89,3 +92,4 @@ La configuración está disponible en **Administración → Plugins → Redmine 
 5. La página de configuración muestra nombres solo de plugins instalados con integración MCP; cada uno tiene una casilla.
 6. Un plugin sin integración MCP no aparece en la página de configuración.
 7. Cuando MCP está deshabilitado, las extensiones de otros plugins no se cargan al arrancar.
+8. Si falta la base de datos, leer ajustes del plugin no interrumpe el arranque ni `db:create`; MCP permanece desactivado hasta que haya ajustes.

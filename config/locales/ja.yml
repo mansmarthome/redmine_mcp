@@ -9,13 +9,18 @@ ja:
     - 意味検索が求められても capabilities.issue_search.semantic.available が false のときは redmine_search_issues にフォールバックし、語彙検索であることを明示します。
     - capabilities.issue_search.cross_resource があるときは、Wiki を含む複数リソースの発見に redmine_search_all を使います。
     - project が不明なときは先に redmine_list_projects を呼びます。project は "1" や "ecookbook" のような文字列で、JSON の数値ではありません。
-    - redmine_create_issue または redmine_update_issue の前に、トラッカー・ステータス・担当者・カスタムフィールドの ID が不明なら redmine_get_issue_form_options を呼びます。任意のドライラン: redmine_validate_issue_create / redmine_validate_issue_update。
+    - redmine_create_issue または redmine_update_issue の前に、トラッカー・ステータス・担当者・カスタムフィールドの ID が不明なら redmine_get_issue_form_options を呼びます.
     - チケット項目を変えずにコメントだけ追加するには redmine_add_issue_note を使います。ウォッチャーは redmine_add_issue_watcher / redmine_remove_issue_watcher です。
-    - プロジェクト内のユーザー検索には redmine_list_users、管理者向けグローバル一覧には redmine_admin_list_users のみを使います。
+    - プロジェクト内のユーザー検索には redmine_list_users；project なしでは管理者が name または group_id でグローバル一覧を絞り込めます。
     - ジャーナルや非公開メモが明示的に必要なときだけ redmine_get_private_notes や include_journals を要求します。
     - redmine_delete_issue などの破壊的ツールは確認が必要なことがあります。INVALID_STATE のときは要求された confirm_* で再実行します。
     - ユーザーにチケットを示すときは、ツール結果の url フィールドをコピーしてください。ホスト名を作らないでください。
     - redmine_* コアツールに加え、導入済みプラグインのツールが独自プレフィックスで現れることがあります。
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: チケットの説明、注記、Wiki 本文は CommonMark Markdown で書いてください（Redmine の有効なテキスト書式）。
+  text_redmine_mcp_server_instructions_text_formatting_textile: チケットの説明、注記、Wiki 本文は Textile で書いてください（Redmine の有効なテキスト書式）。
+  text_redmine_mcp_server_instructions_text_formatting_none: チケットの説明、注記、Wiki 本文はプレーンテキストで書いてください（Redmine のテキスト書式は無効です）。
+  text_redmine_mcp_server_instructions_text_formatting_other: Redmine ではカスタム書式 %{format_name} が有効です。構文が不明な場合は、マークアップを追加する前に確認してください。
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: 設定されているテキスト書式 %{format_name} は利用できません（提供していたプラグインが削除された可能性があります）。チケットの説明、注記、Wiki 本文はプレーンテキストで書いてください。
   text_redmine_mcp_server_instructions_read_only: MCP 読み取り専用モードが有効なため、書き込み操作は現在ブロックされています。
   label_redmine_mcp_enabled: MCP を有効にする
   label_redmine_mcp_read_only: 読み取り専用モード
@@ -52,6 +57,14 @@ ja:
   error_mcp_boards_not_enabled: このプロジェクトではフォーラムモジュールが無効です
   error_mcp_board_not_found: フォーラムが見つかりません
   error_mcp_board_message_not_found: フォーラムのメッセージが見つかりません
+  error_mcp_repository_not_enabled: このプロジェクトではリポジトリモジュールが無効です
+  error_mcp_repository_not_found: リポジトリが見つかりません
+  error_mcp_revision_not_found: リビジョンが見つかりません
+  error_mcp_repository_path_not_found: リポジトリのパスが見つかりません
+  error_mcp_repository_path_not_allowed: リポジトリのパスが許可されていません
+  error_mcp_invalid_revision: 無効なリビジョンパラメータ
+  error_mcp_repository_file_too_large: リポジトリファイルが許可サイズを超えています
+  error_mcp_scm_command_failed: "SCMコマンドが失敗しました"
   error_mcp_query_not_found: 保存済みクエリが見つかりません
   error_mcp_activity_window_too_long: アクティビティ期間は 90 日以内である必要があります
   error_mcp_wiki_not_found: Wiki が見つかりません

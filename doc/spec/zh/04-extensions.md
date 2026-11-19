@@ -37,7 +37,7 @@ Redmine MCP 提供扩展机制，让其他已安装的 Redmine 插件注册自�
 
 - 扩展插件可注册任意数量的工具。
 - 每个工具包含：名称、描述、输入 schema、输出 schema、权限要求和处理程序。
-- 完整工具名：`redmine_<plugin_id>_<name>`，例如 `redmine_redmine_advanced_checklists_get_issue_checklists`、`redmine_advanced_search_semantic_search_issues`。
+- 完整工具名：`redmine_<plugin_id>_<name>`，例如 `redmine_advanced_checklists_get_checklists`、`redmine_advanced_search_semantic_search_issues`。
 - 禁止重复的工具名称。
 - 仅对拥有相应权限的用户，工具才会出现在 MCP 中。
 - 议题范围的扩展工具可能需要启用 Redmine 项目模块（模块标识符不必与插件 id 一致）。在 `tools/list` 中，若用户在至少一个启用该模块的可见项目中拥有声明的权限，此类工具可见。无模块要求时，在至少一个可见项目中拥有权限即可。调用时仍检查特定议题：可见性、其项目中的权限和已启用模块；否则响应为 "not found"。

@@ -117,7 +117,7 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-Se `plugin_id` inizia già con `redmine_` (ad esempio `redmine_advanced_checklists`), il nome completo segue comunque `redmine_<plugin_id>_<name>`: `redmine_redmine_advanced_checklists_<name>`.
+Se `plugin_id` inizia già con `redmine_` (ad esempio `redmine_advanced_checklists`), il nome completo segue comunque `redmine_<plugin_id>_<name>`: `redmine_advanced_checklists_<name>`.
 
 Per le risorse, usare un URI univoco, ad esempio:
 

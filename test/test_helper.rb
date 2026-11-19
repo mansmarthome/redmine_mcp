@@ -89,12 +89,8 @@ class RedmineMcpTestCase < ActiveSupport::TestCase
     limit_error = RedmineMcp::RequestLimits.check_before_call!(user: user, args: args)
     return RedmineMcp::ToolResponse.from_handler_result(limit_error) if limit_error
 
-    unless definition.allowed_for?(user, args)
-      return RedmineMcp::ToolResponse.failure(
-        code: 'FORBIDDEN',
-        message: I18n.t(:error_mcp_permission_denied)
-      )
-    end
+    access_error = definition.authorization_error(user, args)
+    return RedmineMcp::ToolResponse.from_handler_result(access_error) if access_error
 
     validation_error = RedmineMcp::InputValidator.validate(input_schema, args)
     return validation_error if validation_error
@@ -144,20 +140,22 @@ class RedmineMcpTestCase < ActiveSupport::TestCase
     extensions = mcp_registry.tool_extensions(definition.full_name)
     input_schema = RedmineMcp::ToolRunner.merge_schemas(definition, extensions)
 
-    unless definition.allowed_for?(user, args)
-      return RedmineMcp::ToolResponse.failure(
-        code: 'FORBIDDEN',
-        message: I18n.t(:error_mcp_permission_denied)
-      )
-    end
+    access_error = definition.authorization_error(user, args)
+    return RedmineMcp::ToolResponse.from_handler_result(access_error) if access_error
 
     validation_error = RedmineMcp::InputValidator.validate(input_schema, args)
     return validation_error if validation_error
 
     previous_user = User.current
     User.current = user
+    call_name =
+      if tool_name.to_s.start_with?('redmine_')
+        tool_name.to_s
+      else
+        RedmineMcp::ToolDefinition.full_name_for(:redmine, tool_name)
+      end
     begin
-      context = {user: user}
+      context = {user: user, tool_name: call_name}
       result = RedmineMcp::ToolRunner.run(definition, extensions, args, context)
       RedmineMcp::ToolResponse.from_handler_result(result)
     ensure
@@ -250,18 +248,21 @@ class RedmineMcpTestCase < ActiveSupport::TestCase
   end
 
   def satisfy_schema_constraints!(schema, args, properties)
-    return if schema[:oneOf].blank?
+    %i[oneOf anyOf].each do |combiner|
+      branches = schema[combiner]
+      next if branches.blank?
 
-    branch = schema[:oneOf].find do |candidate|
-      Array(candidate[:required]).all? { |key| args.key?(key.to_sym) || args.key?(key) }
-    end
-    branch ||= schema[:oneOf].first
+      branch = branches.find do |candidate|
+        Array(candidate[:required]).all? { |key| args.key?(key.to_sym) || args.key?(key) }
+      end
+      branch ||= branches.first
 
-    Array(branch[:required]).each do |key|
-      sym = key.to_sym
-      next if args.key?(sym)
+      Array(branch[:required]).each do |key|
+        sym = key.to_sym
+        next if args.key?(sym)
 
-      args[sym] = ARG_OVERRIDES[sym] || sample_value_for_schema(properties[sym] || properties[key.to_s])
+        args[sym] = ARG_OVERRIDES[sym] || sample_value_for_schema(properties[sym] || properties[key.to_s])
+      end
     end
   end
 

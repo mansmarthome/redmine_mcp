@@ -9,13 +9,18 @@ fr:
     - Si une recherche sémantique est demandée mais que capabilities.issue_search.semantic.available est false, revenez à redmine_search_issues et indiquez que le repli est lexical, pas sémantique.
     - Utilisez redmine_search_all pour découvrir plusieurs types de ressources, y compris le wiki, lorsque capabilities.issue_search.cross_resource est disponible.
     - Si project est inconnu, appelez d'abord redmine_list_projects. project doit être une chaîne telle que "1" ou "ecookbook", pas un nombre JSON.
-    - Avant redmine_create_issue ou redmine_update_issue, appelez redmine_get_issue_form_options si les ID de tracker, statut, assigné ou champs personnalisés sont inconnus. Dry-run optionnel : redmine_validate_issue_create / redmine_validate_issue_update.
+    - Avant redmine_create_issue ou redmine_update_issue, appelez redmine_get_issue_form_options si les ID de tracker, statut, assigné ou champs personnalisés sont inconnus.
     - Pour ajouter un commentaire sans modifier les champs de la demande, utilisez redmine_add_issue_note. Pour les observateurs, utilisez redmine_add_issue_watcher ou redmine_remove_issue_watcher.
-    - Utilisez redmine_list_users pour rechercher des utilisateurs du projet ; redmine_admin_list_users uniquement pour l'annuaire global administrateur.
+    - Utilisez redmine_list_users pour rechercher des utilisateurs du projet ; sans project, l'administrateur peut filtrer l'annuaire global avec name ou group_id.
     - Demandez redmine_get_private_notes ou include_journals seulement lorsque l'utilisateur a explicitement besoin des journaux ou notes privées.
     - Les tools destructifs comme redmine_delete_issue peuvent exiger une confirmation ; en cas de INVALID_STATE, réessayez avec les paramètres confirm_* demandés.
     - Pour citer une demande à l'utilisateur, copiez le champ url du résultat du tool. N'inventez pas de nom d'hôte.
     - Outre les core tools redmine_*, des tools de plugins installés peuvent apparaître avec leurs propres préfixes.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Rédigez les descriptions de demandes, notes et textes Wiki en CommonMark Markdown (formatage de texte Redmine actif).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Rédigez les descriptions de demandes, notes et textes Wiki en Textile (formatage de texte Redmine actif).
+  text_redmine_mcp_server_instructions_text_formatting_none: Rédigez les descriptions de demandes, notes et textes Wiki en texte brut (le formatage de texte Redmine est désactivé).
+  text_redmine_mcp_server_instructions_text_formatting_other: Dans Redmine, le format personnalisé %{format_name} est actif. Si sa syntaxe est inconnue, clarifiez-la avant d’ajouter du balisage.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: Le format de texte configuré %{format_name} n’est pas disponible (le plugin qui le fournissait a peut-être été supprimé). Rédigez les descriptions de demandes, notes et textes Wiki en texte brut.
   text_redmine_mcp_server_instructions_read_only: Les opérations d'écriture sont actuellement bloquées car le mode lecture seule MCP est activé.
   label_redmine_mcp_enabled: Activer MCP
   label_redmine_mcp_read_only: Mode lecture seule
@@ -52,6 +57,14 @@ fr:
   error_mcp_boards_not_enabled: Le module forums n'est pas activé pour ce projet
   error_mcp_board_not_found: Forum introuvable
   error_mcp_board_message_not_found: Message du forum introuvable
+  error_mcp_repository_not_enabled: Le module dépôt n'est pas activé pour ce projet
+  error_mcp_repository_not_found: Dépôt introuvable
+  error_mcp_revision_not_found: Révision introuvable
+  error_mcp_repository_path_not_found: Chemin du dépôt introuvable
+  error_mcp_repository_path_not_allowed: Chemin du dépôt non autorisé
+  error_mcp_invalid_revision: Paramètre de révision invalide
+  error_mcp_repository_file_too_large: Le fichier du dépôt dépasse la taille autorisée
+  error_mcp_scm_command_failed: "Échec de la commande SCM"
   error_mcp_query_not_found: Requête enregistrée introuvable
   error_mcp_activity_window_too_long: La fenêtre d'activité ne doit pas dépasser 90 jours
   error_mcp_wiki_not_found: Wiki introuvable

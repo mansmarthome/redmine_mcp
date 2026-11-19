@@ -20,20 +20,10 @@
 module RedmineMcp
   module Patches
     module SettingsControllerPatch
-      def self.included(base)
-        base.send(:include, InstanceMethods)
-        base.class_eval do
-          alias_method :plugin_without_redmine_mcp, :plugin
-          alias_method :plugin, :plugin_with_redmine_mcp
-        end
-      end
+      def plugin
+        params[:settings] = RedmineMcp::Settings.prepare_for_save(params[:settings].permit!.to_h) if params[:id] == 'redmine_mcp' && request.post? && params[:settings]
 
-      module InstanceMethods
-        def plugin_with_redmine_mcp
-          params[:settings] = RedmineMcp::Settings.prepare_for_save(params[:settings].permit!.to_h) if params[:id] == 'redmine_mcp' && request.post? && params[:settings]
-
-          plugin_without_redmine_mcp
-        end
+        super
       end
     end
   end

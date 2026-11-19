@@ -57,8 +57,31 @@ module RedmineMcp
 
       def server_instructions
         parts = [I18n.t(:text_redmine_mcp_server_instructions).strip]
+        formatting_hint = text_formatting_instructions
+        parts << formatting_hint if formatting_hint
         parts << I18n.t(:text_redmine_mcp_server_instructions_read_only) if Settings.read_only?
         parts.join("\n\n")
+      end
+
+      def text_formatting_instructions
+        format_name = Setting.text_formatting.to_s
+        case format_name
+        when 'common_mark'
+          I18n.t(:text_redmine_mcp_server_instructions_text_formatting_common_mark)
+        when 'textile'
+          I18n.t(:text_redmine_mcp_server_instructions_text_formatting_textile)
+        when ''
+          I18n.t(:text_redmine_mcp_server_instructions_text_formatting_none)
+        else
+          if Settings.text_formatting_registered?(format_name)
+            I18n.t(:text_redmine_mcp_server_instructions_text_formatting_other, format_name: format_name)
+          else
+            I18n.t(
+              :text_redmine_mcp_server_instructions_text_formatting_unavailable,
+              format_name: format_name
+            )
+          end
+        end
       end
 
       def read_resource(uri, user)

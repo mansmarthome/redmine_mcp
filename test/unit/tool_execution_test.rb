@@ -94,7 +94,7 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
   test 'board and query not found keep NOT_FOUND in Russian' do
     admin = User.find(1)
     I18n.with_locale(:ru) do
-      query = invoke_mcp_tool('run_issue_query', user: admin, args: {query_id: 99_999})
+      query = invoke_mcp_tool('list_issues', user: admin, args: {query_id: 99_999})
       board = RedmineMcp::ToolResponse.from_handler_result(
         RedmineMcp::Core::Tools::Boards.get_board_message({message_id: 99_999}, {user: admin})
       )
@@ -314,55 +314,166 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
     end
   end
 
-  test 'validate_issue_create rejects a tracker the user cannot use' do
+  test 'create_issue rejects a tracker the user cannot use' do
     user = User.find(2)
     Role.find(1).set_permission_trackers(:add_issues, [1]).save!
 
     payload = invoke_mcp_tool(
-      'validate_issue_create',
+      'create_issue',
       user: user,
       args: {project: 'ecookbook', subject: 'Forbidden tracker', tracker_id: 2}
     )
 
-    assert_mcp_ok(payload)
-    assert_equal false, payload.dig(:data, :valid)
-    assert_includes Array(payload.dig(:data, :rejected_fields)), 'tracker_id'
+    assert_equal false, payload[:ok]
+    assert_includes Array(payload.dig(:error, :details, :rejected_fields)), 'tracker_id'
   end
 
-  test 'validate_issue_create rejects a disabled description field' do
+  test 'create_issue rejects a disabled description field' do
     tracker = Tracker.find(1)
     original_fields = tracker.core_fields
     tracker.core_fields = original_fields - ['description']
     tracker.save!
 
     payload = invoke_mcp_tool(
-      'validate_issue_create',
+      'create_issue',
       user: User.find(1),
       args: {project: 'ecookbook', subject: 'No description', tracker_id: 1, description: 'Should be rejected'}
     )
 
-    assert_mcp_ok(payload)
-    assert_equal(false, payload.dig(:data, :valid))
-    assert_includes(Array(payload.dig(:data, :rejected_fields)), 'description')
+    assert_equal(false, payload[:ok])
+    assert_includes(Array(payload.dig(:error, :details, :rejected_fields)), 'description')
   ensure
     tracker.core_fields = original_fields
     tracker.save!
   end
 
-  test 'validate_issue_create stays available in read only mode' do
-    with_read_only_mcp!
+  test 'get_project include_modules adds enabled_modules' do
     payload = invoke_mcp_tool(
-      'validate_issue_create',
+      'get_project',
       user: User.find(1),
-      args: {project: 'ecookbook', subject: 'Dry run'}
+      args: {project: 'ecookbook', include_modules: true}
     )
 
     assert_mcp_ok(payload)
-    assert_includes [true, false], payload.dig(:data, :valid)
+    assert_equal Project.find(1).enabled_module_names, payload.dig(:data, :enabled_modules)
   end
 
-  test 'validate_issue_update requires at least one attribute' do
-    payload = invoke_mcp_tool('validate_issue_update', user: User.find(2), args: {issue_id: 1})
+  test 'list_issues parent_id filter lists direct subtasks' do
+    admin = User.find(1)
+    parent = Issue.find(1)
+    child = Issue.generate!(
+      project: parent.project,
+      author: admin,
+      subject: 'MCP list_issues subtask',
+      parent: parent,
+      tracker_id: parent.tracker_id,
+      status_id: parent.status_id
+    )
+    grandchild = Issue.generate!(
+      project: parent.project,
+      author: admin,
+      subject: 'MCP list_issues nested subtask',
+      parent: child,
+      tracker_id: parent.tracker_id,
+      status_id: parent.status_id
+    )
+
+    payload = invoke_mcp_tool(
+      'list_issues',
+      user: admin,
+      args: {
+        filters: [{field: 'parent_id', operator: '=', values: [parent.id.to_s]}]
+      }
+    )
+
+    assert_mcp_ok(payload)
+    ids = Array(payload.dig(:data, :items)).map { |item| item[:id] }
+
+    assert_includes ids, child.id
+    assert_not_includes ids, grandchild.id
+  end
+
+  test 'list_issues parent_id filter returns subtasks of multiple parents when values are separate strings' do
+    admin = User.find(1)
+    parent_a = Issue.find(1)
+    parent_b = Issue.generate!(
+      project: parent_a.project,
+      author: admin,
+      subject: 'MCP parent B for multi parent_id filter',
+      tracker_id: parent_a.tracker_id,
+      status_id: parent_a.status_id
+    )
+    child_a = Issue.generate!(
+      project: parent_a.project,
+      author: admin,
+      subject: 'MCP child of parent A multi filter',
+      parent: parent_a,
+      tracker_id: parent_a.tracker_id,
+      status_id: parent_a.status_id
+    )
+    child_b = Issue.generate!(
+      project: parent_a.project,
+      author: admin,
+      subject: 'MCP child of parent B multi filter',
+      parent: parent_b,
+      tracker_id: parent_a.tracker_id,
+      status_id: parent_a.status_id
+    )
+
+    payload = invoke_mcp_tool(
+      'list_issues',
+      user: admin,
+      args: {
+        filters: [{field: 'parent_id', operator: '=', values: [parent_a.id.to_s, parent_b.id.to_s]}]
+      }
+    )
+
+    assert_mcp_ok(payload)
+    ids = Array(payload.dig(:data, :items)).map { |item| item[:id] }
+
+    assert_includes ids, child_a.id
+    assert_includes ids, child_b.id
+  end
+
+  test 'list_issues parent_id filter checks access for each parent id including second in values array' do
+    admin = User.find(1)
+    parent_a = Issue.find(1)
+    parent_b = Issue.generate!(
+      project: parent_a.project,
+      author: admin,
+      subject: 'MCP private parent B for parent_id filter',
+      tracker_id: parent_a.tracker_id,
+      status_id: parent_a.status_id,
+      is_private: true
+    )
+    role = Role.generate!(permissions: %i[view_issues])
+    user = User.generate!
+    User.add_to_project(user, parent_a.project, role)
+
+    payload = invoke_mcp_tool(
+      'list_issues',
+      user: user,
+      args: {
+        filters: [{field: 'parent_id', operator: '=', values: [parent_a.id.to_s, parent_b.id.to_s]}]
+      }
+    )
+
+    assert_equal false, payload[:ok]
+  end
+
+  test 'list_issues parent_id filter requires visible parent' do
+    parent = Issue.find(1)
+    role = Role.generate!(permissions: [])
+    user = User.generate!
+    User.add_to_project(user, parent.project, role)
+
+    payload = invoke_mcp_tool(
+      'list_issues',
+      user: user,
+      args: {
+        filters: [{field: 'parent_id', operator: '=', values: [parent.id.to_s]}]
+      }
+    )
 
     assert_equal false, payload[:ok]
   end
@@ -437,9 +548,9 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
     end
   end
 
-  test 'run_issue_query runs a visible query and hides a private one' do
-    visible = invoke_mcp_tool('run_issue_query', user: User.find(2), args: {query_id: 4})
-    hidden = invoke_mcp_tool('run_issue_query', user: User.find(2), args: {query_id: 2})
+  test 'list_issues with query_id runs a visible query and hides a private one' do
+    visible = invoke_mcp_tool('list_issues', user: User.find(2), args: {query_id: 4})
+    hidden = invoke_mcp_tool('list_issues', user: User.find(2), args: {query_id: 2})
 
     assert_mcp_ok(visible)
     assert_kind_of Array, visible.dig(:data, :items)
@@ -487,6 +598,40 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
 
     assert_equal false, disabled[:ok]
     assert_equal 'FORBIDDEN', disabled.dig(:error, :code)
+  end
+
+  test 'list_board_topics returns root topics for board' do
+    user = User.find(2)
+    payload = invoke_mcp_tool('list_board_topics', user: user, args: {board_id: 1})
+
+    assert_mcp_ok(payload)
+    assert Array(payload.dig(:data, :items)).any?
+    assert(payload.dig(:data, :items).all? { |item| item[:board_id] == 1 })
+  end
+
+  test 'get_board_message returns message with replies metadata' do
+    user = User.find(2)
+    payload = invoke_mcp_tool('get_board_message', user: user, args: {message_id: 1})
+
+    assert_mcp_ok(payload)
+    assert_equal 1, payload.dig(:data, :id)
+    assert payload.dig(:data, :content).present?
+    assert_kind_of Array, payload.dig(:data, :replies)
+  end
+
+  test 'list_repositories errors when repository module is disabled' do
+    user = User.find(2)
+    enabled = invoke_mcp_tool('list_repositories', user: user, args: {project: 'ecookbook'})
+
+    assert_mcp_ok(enabled)
+
+    Project.find(1).disable_module!(:repository)
+    disabled = invoke_mcp_tool('list_repositories', user: user, args: {project: 'ecookbook'})
+
+    assert_equal(false, disabled[:ok])
+    assert_equal('INVALID_STATE', disabled.dig(:error, :code))
+  ensure
+    Project.find(1).enable_module!(:repository)
   end
 
   test 'get_version spent_hours respects own time entries visibility' do
@@ -593,8 +738,8 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
     items.each { |item| assert item[:login].present? }
   end
 
-  test 'admin_list_users name filter matches email addresses' do
-    payload = invoke_mcp_tool('admin_list_users', user: User.find(1), args: {name: 'jsmith@somenet.foo'})
+  test 'list_users name filter matches email addresses for admin' do
+    payload = invoke_mcp_tool('list_users', user: User.find(1), args: {name: 'jsmith@somenet.foo'})
 
     assert_mcp_ok(payload)
     ids = Array(payload.dig(:data, :items)).map { |item| item[:id] }
@@ -602,52 +747,127 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
     assert_includes ids, 2
   end
 
-  test 'list_all_users alias remains callable with the same result' do
-    canonical = invoke_mcp_tool('admin_list_users', user: User.find(1), args: {})
-    aliased = invoke_mcp_tool('list_all_users', user: User.find(1), args: {})
-
-    assert_mcp_ok(canonical)
-    assert_mcp_ok(aliased)
-    assert_equal canonical.dig(:data, :items), aliased.dig(:data, :items)
-  end
-
-  test 'list_files alias remains callable with the same result as list_project_files' do
-    args = {project: 'ecookbook'}
-    canonical = invoke_mcp_tool('list_project_files', user: User.find(1), args: args)
-    aliased = invoke_mcp_tool('list_files', user: User.find(1), args: args)
-
-    assert_mcp_ok(canonical)
-    assert_mcp_ok(aliased)
-    assert_equal canonical.dig(:data, :items), aliased.dig(:data, :items)
-  end
-
-  test 'delete_file alias remains callable' do
-    uploaded = invoke_mcp_tool(
-      'upload_file',
-      user: User.find(1),
-      args: {
-        project: 'ecookbook',
-        filename: 'mcp-delete-alias.txt',
-        content_base64: Base64.strict_encode64('alias delete')
-      }
+  test 'list_users admin with project and name returns validation error not forbidden' do
+    admin = User.find(1)
+    payload = invoke_mcp_tool(
+      'list_users',
+      user: admin,
+      args: {project: 'ecookbook', name: 'ivan'}
     )
 
-    assert_mcp_ok(uploaded)
-    file_id = uploaded.dig(:data, :id)
-    aliased = invoke_mcp_tool('delete_file', user: User.find(1), args: {file_id: file_id})
-
-    assert_mcp_ok(aliased)
-    assert_equal file_id, aliased.dig(:data, :deleted_file_id)
-    assert_not Attachment.exists?(file_id)
+    assert_equal false, payload[:ok]
+    assert_equal 'VALIDATION_ERROR', payload.dig(:error, :code)
   end
 
-  test 'get_server_info alias remains callable with the same result as get_mcp_info' do
-    canonical = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
-    aliased = invoke_mcp_tool('get_server_info', user: User.find(1), args: {})
+  test 'list_users admin applies name group_id and query filters with AND' do
+    admin = User.find(1)
+    payload = invoke_mcp_tool(
+      'list_users',
+      user: admin,
+      args: {group_id: 10, query: 'User', name: 'Misc'}
+    )
 
-    assert_mcp_ok(canonical)
-    assert_mcp_ok(aliased)
-    assert_equal canonical[:data], aliased[:data]
+    assert_mcp_ok(payload)
+    ids = Array(payload.dig(:data, :items)).map { |item| item[:id] }
+
+    assert_equal [8], ids
+  end
+
+  test 'list_issues with query_id and status_id returns validation error' do
+    admin = User.find(1)
+    payload = invoke_mcp_tool(
+      'list_issues',
+      user: admin,
+      args: {query_id: 4, status_id: 1}
+    )
+
+    assert_equal false, payload[:ok]
+    assert_equal 'VALIDATION_ERROR', payload.dig(:error, :code)
+  end
+
+  test 'list_issues with global query_id and project narrows to project' do
+    member = User.find(2)
+    without_project = invoke_mcp_tool('list_issues', user: member, args: {query_id: 4, limit: 100})
+    with_project = invoke_mcp_tool(
+      'list_issues',
+      user: member,
+      args: {query_id: 4, project: 'ecookbook', limit: 100}
+    )
+
+    assert_mcp_ok(without_project)
+    assert_mcp_ok(with_project)
+    narrow_ids = Array(with_project.dig(:data, :items)).map { |item| item[:id] }
+    wide_ids = Array(without_project.dig(:data, :items)).map { |item| item[:id] }
+
+    assert(narrow_ids.all? { |id| Issue.find(id).project_id == 1 })
+    assert_operator narrow_ids.size, :<=, wide_ids.size
+  end
+
+  test 'removed consolidated tools are not registered' do
+    assert_nil mcp_registry.tool('admin_list_users')
+    assert_nil mcp_registry.tool('run_issue_query')
+    assert_nil mcp_registry.tool('import_time_entries')
+  end
+
+  test 'removed tool aliases are not registered' do
+    %w[
+      list_files delete_file get_server_info list_project_trackers
+      get_project_modules set_issue_note_private
+    ].each do |name|
+      assert_nil mcp_registry.tool(name), name
+    end
+  end
+
+  test 'get_mcp_info returns live text_formatting' do
+    with_settings text_formatting: 'common_mark' do
+      result = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
+
+      assert_mcp_ok(result)
+      assert_equal 'common_mark', result.dig(:data, :text_formatting)
+    end
+
+    with_settings text_formatting: 'textile' do
+      result = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
+
+      assert_mcp_ok(result)
+      assert_equal 'textile', result.dig(:data, :text_formatting)
+    end
+
+    with_settings text_formatting: '' do
+      result = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
+
+      assert_mcp_ok(result)
+      assert_equal '', result.dig(:data, :text_formatting)
+    end
+  end
+
+  test 'get_mcp_info returns empty text_formatting for unregistered format' do
+    with_settings text_formatting: 'custom_formatter' do
+      result = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
+
+      assert_mcp_ok(result)
+      assert_equal '', result.dig(:data, :text_formatting)
+    end
+  end
+
+  test 'get_mcp_info returns registered third-party text_formatting' do
+    format_name = 'mcp_custom_formatter'
+    formatters = Redmine::WikiFormatting.class_variable_get(:@@formatters)
+    formatters[format_name] = {
+      formatter: Redmine::WikiFormatting::NullFormatter::Formatter,
+      helper: Redmine::WikiFormatting::NullFormatter::Helper,
+      html_parser: Redmine::WikiFormatting::HtmlParser,
+      label: 'MCP custom formatter'
+    }
+
+    with_settings(text_formatting: format_name) do
+      result = invoke_mcp_tool('get_mcp_info', user: User.find(1), args: {})
+
+      assert_mcp_ok(result)
+      assert_equal(format_name, result.dig(:data, :text_formatting))
+    end
+  ensure
+    formatters&.delete(format_name)
   end
 
   test 'get_version with project returns a shared version from list_versions' do
@@ -669,5 +889,15 @@ class RedmineMcpToolExecutionTest < RedmineMcpTestCase
     assert_equal false, without_project[:ok]
     assert_mcp_ok(with_project)
     assert_equal version.id, with_project.dig(:data, :id)
+  end
+
+private
+
+  def setup_validate_move_target_project
+    target = Project.generate!
+    target.trackers << Tracker.find(1) unless target.trackers.exists?(id: 1)
+    target.enabled_module_names = %w[issue_tracking]
+    target.save!
+    target
   end
 end

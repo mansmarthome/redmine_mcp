@@ -28,9 +28,9 @@ class RedmineMcpToolPermissionTest < RedmineMcpTestCase
     assert_equal 'NOT_FOUND', payload.dig(:error, :code)
   end
 
-  test 'non admin cannot list all users' do
+  test 'non admin cannot use admin-only list_users filters' do
     user = User.find(2)
-    payload = invoke_mcp_tool('admin_list_users', user: user, args: {})
+    payload = invoke_mcp_tool('list_users', user: user, args: {name: 'admin'})
 
     assert_equal false, payload[:ok]
     assert_equal 'FORBIDDEN', payload.dig(:error, :code)
@@ -102,12 +102,12 @@ class RedmineMcpToolPermissionTest < RedmineMcpTestCase
     missing = invoke_mcp_tool(
       'add_issue_watcher',
       user: user,
-      args: {issue_id: 1, user_id: 999_999}
+      args: {issue_id: 1, principal_id: 999_999}
     )
     outsider = invoke_mcp_tool(
       'add_issue_watcher',
       user: user,
-      args: {issue_id: 1, user_id: 7}
+      args: {issue_id: 1, principal_id: 7}
     )
 
     assert_equal false, missing[:ok]
@@ -124,7 +124,57 @@ class RedmineMcpToolPermissionTest < RedmineMcpTestCase
     )
 
     assert_equal false, payload[:ok]
-    assert_includes %w[FORBIDDEN NOT_FOUND], payload.dig(:error, :code)
+    assert_equal 'NOT_FOUND', payload.dig(:error, :code)
+  end
+
+  test 'missing project returns NOT_FOUND before permission for symbol and proc tools' do
+    user = User.find(2)
+    missing = 'mcp-missing-project-identifier'
+
+    %w[list_trackers get_project list_versions list_issues list_wiki_pages].each do |tool_name|
+      payload = invoke_mcp_tool(tool_name, user: user, args: {project: missing})
+
+      assert_equal false, payload[:ok], tool_name
+      assert_equal 'NOT_FOUND', payload.dig(:error, :code), tool_name
+      assert_not_equal 'FORBIDDEN', payload.dig(:error, :code), tool_name
+    end
+  end
+
+  test 'invisible project returns NOT_FOUND like a missing project for a regular user' do
+    user = User.find(2)
+    hidden = Project.generate!(identifier: 'mcp-hidden-project', is_public: false)
+
+    assert_nil Project.visible(user).find_by(id: hidden.id)
+
+    %w[list_trackers get_project list_versions list_issues list_wiki_pages].each do |tool_name|
+      payload = invoke_mcp_tool(tool_name, user: user, args: {project: hidden.identifier})
+
+      assert_equal false, payload[:ok], tool_name
+      assert_equal 'NOT_FOUND', payload.dig(:error, :code), tool_name
+    end
+  end
+
+  test 'list_trackers without project stays available for a regular user' do
+    payload = invoke_mcp_tool('list_trackers', user: User.find(2), args: {})
+
+    assert_mcp_ok(payload)
+    assert_kind_of Array, payload.dig(:data, :items)
+    assert payload.dig(:data, :items).any?
+  end
+
+  test 'visible project without tool permission returns FORBIDDEN' do
+    project, user = generate_stats_project(permissions: %i[view_issues view_project])
+    project.enabled_module_names = %w[issue_tracking time_tracking files]
+    project.save!
+
+    payload = invoke_mcp_tool(
+      'list_project_files',
+      user: user,
+      args: {project: project.identifier}
+    )
+
+    assert_equal false, payload[:ok]
+    assert_equal 'FORBIDDEN', payload.dig(:error, :code)
   end
 
   test 'outsider cannot delete issue' do

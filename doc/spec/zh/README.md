@@ -166,7 +166,7 @@ redmine.example.com
 ### 操作可靠性
 
 - `expected_updated_at` — 用于敏感的 update/delete 操作。
-- `idempotency_key` — 用于 `create_issue`、`copy_issue`、`update_issue`、`add_issue_note`、`create_time_entry`、`import_time_entries`、`upload_file`。
+- `idempotency_key` — 用于 `create_issue`、`copy_issue`、`update_issue`、`add_issue_note`、`create_time_entry`、`upload_file`。
 
 ### 限制
 
@@ -190,7 +190,7 @@ redmine.example.com
 | 工具 | 描述 |
 |------|-------------|
 | `list_projects` | 项目列表 |
-| `get_project` | 项目详情 |
+| `get_project` | 项目详情；可选模块用 `include_modules` |
 | `list_project_issue_custom_fields` | 项目议题自定义字段 |
 | `summarize_project_status` | 服务器构建的 N 天项目指标摘要 |
 | `list_project_activities` | 项目活动 feed（事件，非工时 activity 类型） |
@@ -202,7 +202,6 @@ redmine.example.com
 | `list_project_members` | 项目成员及其角色 |
 | `list_project_member_candidates` | 可添加到项目的用户和组 |
 | `list_roles` | 项目中可管理的角色 |
-| `get_project_modules` | 已启用的项目模块 |
 | `add_project_member` | 添加成员 |
 | `update_project_member` | 更改成员角色 |
 | `remove_project_member` | 移除成员 |
@@ -214,10 +213,7 @@ redmine.example.com
 | `get_issue` | 议题详情（日志、附件、自定义字段等） |
 | `list_issues` | 带筛选和分页的议题列表 |
 | `search_issues` | 议题文本搜索 |
-| `run_issue_query` | 运行已保存的议题查询 |
 | `get_issue_form_options` | 允许的议题表单字段值（单次调用） |
-| `validate_issue_create` | 不写入的情况下验证创建议题参数 |
-| `validate_issue_update` | 不写入的情况下验证更新议题参数 |
 | `create_issue` | 创建议题 |
 | `update_issue` | 更新议题属性和附件 |
 | `add_issue_note` | 为议题添加评论（可选附件） |
@@ -226,11 +222,9 @@ redmine.example.com
 | `list_issue_relations` | 议题关联列表 |
 | `create_issue_relation` | 创建议题间关联 |
 | `delete_issue_relation` | 删除议题关联 |
-| `list_subtasks` | 子任务 |
 | `add_issue_watcher` | 添加关注者 |
 | `remove_issue_watcher` | 移除关注者 |
 | `update_issue_note` | 编辑日志条目 |
-| `set_issue_note_private` | 更改日志条目隐私 |
 | `get_private_notes` | 仅私有评论 |
 | `list_issue_categories` | 项目议题类别 |
 | `create_issue_category` | 创建类别 |
@@ -252,19 +246,16 @@ redmine.example.com
 | `create_time_entry` | 创建工时记录 |
 | `update_time_entry` | 更新工时记录 |
 | `list_time_entry_activities` | 工时 activity 类型（非项目事件 feed） |
-| `import_time_entries` | 批量导入工时记录 |
 
 ### 参考数据
 
 | 工具 | 描述 |
 |------|-------------|
-| `list_trackers` | 所有跟踪器 |
-| `list_project_trackers` | 项目跟踪器 |
+| `list_trackers` | 议题跟踪器（全部或通过 `project` 按项目） |
 | `list_issue_statuses` | 议题状态 |
 | `list_issue_priorities` | 议题优先级 |
-| `admin_list_users` | 带筛选的用户（仅管理员） |
 | `get_current_user` | 当前用户 |
-| `list_queries` | 已保存查询（元数据；执行为 `run_issue_query`） |
+| `list_queries` | 已保存查询（元数据；执行为 带 `query_id` 的 `list_issues`） |
 
 ### 搜索与 Wiki
 
@@ -277,6 +268,17 @@ redmine.example.com
 | `update_wiki_page` | 更新 Wiki 页面 |
 | `delete_wiki_page` | 删除 Wiki 页面 |
 | `rename_wiki_page` | 重命名 Wiki 页面 |
+
+### Repository / SCM
+
+| 工具 | 说明 |
+|------|-------------|
+| `list_repositories` | 项目的 SCM 仓库 |
+| `get_repository` | 仓库 metadata 与默认分支 |
+| `list_revisions` | 缓存的 changeset（分页） |
+| `get_revision` | 单个 changeset，可选文件变更 |
+| `get_repository_file` | 目录列表或文件内容 |
+| `get_repository_diff` | 带 MCP 大小限制的 unified diff |
 
 ### 论坛
 
@@ -293,8 +295,7 @@ redmine.example.com
 | `list_project_files` | 项目文件 |
 | `upload_file` | 上传文件 |
 | `delete_attachment` | 删除附件 |
-| `get_attachment` | 附件元数据和 `content_url` |
-| `download_attachment` | 附件内容（`content_base64`，最大 10 MiB） |
+| `get_attachment` | 附件元数据、`content_url`、可选 `content_base64`（`include_content`，最大 10 MiB） |
 
 ### 实用工具
 

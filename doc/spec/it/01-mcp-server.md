@@ -27,6 +27,7 @@ Consentire ai client AI esterni di interagire con Redmine utilizzando il protoco
 - Le risposte degli strumenti restituiscono un envelope JSON in `structuredContent` (`ok`, `data` o `error`) e una breve rappresentazione testuale in `content` (stringa JSON in caso di successo, messaggio di errore in caso di fallimento).
 - La chiave API è accettata solo dall'header `X-Redmine-API-Key`. Il corpo JSON-RPC non viene usato per l'autenticazione e non viene analizzato prima del controllo della dimensione della richiesta.
 - La dimensione del corpo HTTP è limitata prima del parsing JSON: quando il limite viene superato, la richiesta viene rifiutata e il trasporto MCP non legge il corpo.
+- In `initialize`, le instructions del server includono un suggerimento generale: scrivere descrizioni delle segnalazioni, note e testo Wiki nel formato di testo Redmine attivo. Per `common_mark` — CommonMark Markdown; per `textile` — Textile; con formattazione disattivata (stringa vuota) — testo semplice. Per un formato di terze parti registrato da un plugin, le instructions includono un breve suggerimento con l’identificatore del formato attivo e la richiesta di chiarire la sintassi se sconosciuta; la sintassi stessa proviene dalla documentazione di quel formato, e il codice attuale è disponibile anche tramite `redmine_get_mcp_info`. Se nelle impostazioni resta un formato non registrato (ad esempio dopo la rimozione del plugin), le instructions segnalano che il formato non è disponibile e propongono testo semplice — come nella visualizzazione Redmine senza formattazione disponibile. Il valore del formato viene letto quando si formano le instructions per la richiesta e non viene memorizzato nella cache per tutto il processo dell’applicazione.
 
 ## Casi limite
 
@@ -34,6 +35,8 @@ Consentire ai client AI esterni di interagire con Redmine utilizzando il protoco
 - In modalità stateless, le richieste `GET` per uno stream SSE autonomo non sono supportate (HTTP 405) — questo è il comportamento previsto.
 - Quando si opera dietro un load balancer, le sessioni sticky non sono necessarie.
 - L'elenco degli strumenti può differire tra utenti a seconda dei permessi.
+- Dopo la modifica del formato di testo in amministrazione senza riavviare Redmine, un nuovo `initialize` riceve il suggerimento aggiornato nelle instructions; il codice di formato attuale è disponibile anche tramite `redmine_get_mcp_info` senza riconnessione.
+- Se nelle impostazioni resta l’identificatore di formato di un plugin rimosso, `initialize` non lo tratta come attivo e propone testo semplice.
 
 ## Gestione degli errori
 
@@ -56,3 +59,6 @@ Consentire ai client AI esterni di interagire con Redmine utilizzando il protoco
 9. `resources/read` con un URI per un progetto inaccessibile non restituisce il contenuto della risorsa.
 10. `prompts/get` con un argomento progetto inaccessibile nega l'accesso.
 11. `tools/call` con argomenti vuoti, un campo extra o un tipo di argomento errato restituisce `isError: true` e `structuredContent.error.code` `VALIDATION_ERROR`.
+12. Le instructions di `initialize` menzionano il formato di testo attivo (CommonMark, Textile, testo semplice o identificatore di formato di terze parti registrato) per descrizioni delle segnalazioni, note e Wiki.
+13. Dopo la modifica del formato di testo senza riavviare Redmine, un nuovo `initialize` riflette il nuovo formato nelle instructions.
+14. Se le impostazioni indicano un formato non registrato, `initialize` segnala che non è disponibile e propone testo semplice.

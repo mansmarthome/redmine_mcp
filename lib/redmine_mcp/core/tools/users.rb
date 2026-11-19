@@ -37,9 +37,11 @@ module RedmineMcp
                          'to list active members of one project (requires view_members on that project). ' \
                          'Optional query filters by login, firstname, or lastname substring (case-insensitive; % and _ are literal). ' \
                          'Optional login further filters by login substring and combines with query via AND. ' \
-                         'Administrators may omit project to search all active users. For people who are not yet project ' \
-                         'members, use redmine_list_project_member_candidates. Each item ' \
-                         'includes id, login, name parts, and mail. Does not modify Redmine.',
+                         'Administrators may omit project to search all active users; global admin search supports optional name ' \
+                         '(login, firstname, lastname, or email via User.like) and group_id, combinable with query/login via AND. ' \
+                         'Global admin results include created_on. name and group_id are rejected with project or for non-admins. ' \
+                         'For people who are not yet project members, use redmine_list_project_member_candidates. ' \
+                         'Does not modify Redmine.',
             input_schema: {
               properties: {
                 project: Helpers::PROJECT_SCHEMA,
@@ -47,7 +49,9 @@ module RedmineMcp
                   type: 'string',
                   description: 'Case-insensitive substring match against login, firstname, or lastname.'
                 },
-                login: {type: 'string', description: 'Find user by login substring'}
+                login: {type: 'string', description: 'Find user by login substring'},
+                name: {type: 'string', description: 'Administrator global search only: substring on login, name parts, or email'},
+                group_id: {type: 'integer', minimum: 1, description: 'Administrator global search only: filter by group membership'}
               }.merge(Helpers::PAGINATION_INPUT)
             },
             output_schema: RedmineMcp::Core::OutputSchemas::LIST_USERS,
@@ -88,6 +92,11 @@ module RedmineMcp
           limit = Helpers.clamp_limit(args[:limit])
           offset = Helpers.clamp_offset(args[:offset])
 
+          if admin_only_user_filters?(args)
+            return Helpers.error_result(:error_mcp_invalid_parameters) if args[:project].present?
+            return Helpers.error_result(:error_mcp_permission_denied) unless user.admin?
+          end
+
           if args[:project].present?
             project = Helpers.find_project(user, args[:project])
             return Helpers.error_result(:error_mcp_project_not_found) unless project
@@ -95,16 +104,20 @@ module RedmineMcp
             scope = project.users.order(:login, :id)
             scope = apply_login_scope(scope, args[:login])
             scope = apply_query_scope(scope, args[:query])
+            admin_global = false
           elsif user.admin?
             scope = User.active.order(:login, :id)
             scope = apply_login_scope(scope, args[:login])
             scope = apply_query_scope(scope, args[:query])
+            scope = scope.like(args[:name]) if args[:name].present?
+            scope = scope.in_group(args[:group_id]) if args[:group_id].present?
+            admin_global = true
           else
             return Helpers.error_result(:error_mcp_project_required)
           end
 
           Helpers.paginate_collection(scope, limit: limit, offset: offset) do |item|
-            serialize_listed_user(item, viewer: user)
+            serialize_listed_user(item, viewer: user, include_created_on: admin_global)
           end
         end
 
@@ -126,6 +139,17 @@ module RedmineMcp
         end
 
         def list_users_allowed?(user, args, project)
+          if admin_only_user_filters?(args)
+            if args[:project].present?
+              project ||= Helpers.find_project(user, args[:project])
+              return false unless project
+
+              return user.allowed_to?(:view_members, project)
+            end
+
+            return user.admin?
+          end
+
           if args[:project].present?
             project ||= Helpers.find_project(user, args[:project])
             return false unless project
@@ -136,6 +160,10 @@ module RedmineMcp
           else
             user.admin? || Helpers.any_project_allows?(user, :view_members)
           end
+        end
+
+        def admin_only_user_filters?(args)
+          args[:name].present? || args[:group_id].present?
         end
 
         def list_groups_allowed?(user)
@@ -157,7 +185,7 @@ module RedmineMcp
           )
         end
 
-        def serialize_listed_user(item, viewer:)
+        def serialize_listed_user(item, viewer:, include_created_on: false)
           payload = {
             id: item.id,
             login: item.login,
@@ -165,6 +193,7 @@ module RedmineMcp
             lastname: item.lastname
           }
           payload[:mail] = item.mail if viewer.admin? || !item.pref.hide_mail
+          payload[:created_on] = item.created_on if include_created_on
           payload
         end
       end

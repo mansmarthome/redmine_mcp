@@ -419,7 +419,7 @@ The response does not include journals or attachments.
 たとえば:
 
 - `redmine_list_project_members` — 特定プロジェクトのメンバーとそのロール;
-- `redmine_admin_list_users` — インストール全体のユーザーリスト、管理権限が必要。
+- `redmine_list_users` で `project` なし — グローバルユーザー一覧（admin のみ）；`project` あり — プロジェクトメンバー。
 
 ### 5.5. サーバーレベル指示
 
@@ -428,11 +428,10 @@ The response does not include journals or attachments.
 指示は個別の説明にないコンテキストを追加し、完全名でツールを参照すべき（§5.2.1）。例:
 
 ```text
-Use redmine_search_issues before redmine_get_issue when the issue ID is unknown.
-Before creating or updating an issue, call redmine_list_project_trackers and
-redmine_list_project_issue_custom_fields when their IDs are not already known.
-Private notes must only be requested when the user explicitly needs them and has
-the required permission.
+issue ID が不明な場合は、redmine_get_issue の前に redmine_search_issues を使用する。
+課題の作成または更新の前に、ID がまだ不明な場合は redmine_list_trackers（オプションの `project` 付き）と
+redmine_list_project_issue_custom_fields を呼び出す。
+プライベートノートは、ユーザーが明示的に必要とし、必要な権限がある場合にのみ要求する。
 ```
 
 禁止（FORBIDDEN）:
@@ -1463,7 +1462,7 @@ Call redmine_list_allowed_issue_transitions to retrieve current values.
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1727,6 @@ redmine_get_issue
 5. 合意期間後にエイリアスを削除（別途合意がない限り、次のメジャーバージョンより前には削除しない）;
 6. サーバーが `listChanged` を宣言する場合 `notifications/tools/list_changed` を送信。
 
-現在の例（[03-core-tools.md](03-core-tools.md) 参照）: `redmine_list_all_users` → `redmine_admin_list_users`; `redmine_list_files` → `redmine_list_project_files`; `redmine_delete_file` → `redmine_delete_attachment`; `redmine_get_server_info` → `redmine_get_mcp_info`。alias は `tools/call` で受け付けられ、`tools/list` には公開されない。
-
 ### 15.3. 説明の変更
 
 説明はモデルのツール選択に影響し、behavioral 変更とみなされる。説明の実質的変更時は LLM 選択例をレビューするか、選択レビューを繰り返すべき（SHOULD）。
@@ -1834,7 +1831,7 @@ Extension API 経由でツールを追加する Redmine プラグイン作者向
 
 ### 18.3. 命名
 
-- 名前は `redmine_` で始まらなければならない（MUST）; 次に — `plugin_id` と `<verb>_<entity>`: `redmine_redmine_advanced_checklists_<verb>_<entity>`、`redmine_advanced_search_<verb>_<entity>`。
+- 名前は `redmine_` で始まらなければならない（MUST）; 次に — `plugin_id` と `<verb>_<entity>`: `redmine_advanced_checklists_<verb>_<entity>`、`redmine_advanced_search_<verb>_<entity>`。
 - 動詞と `manage_*` 禁止 — §4.2 および §3.1 に従う。
 - コアツール名をコピーせず、同じ意図の 2 つ目のツールを別名で公開しない。
 
@@ -2030,7 +2027,7 @@ MCP にのみ必要なロジック — たとえば複数モデルからのデ�
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2053,7 @@ MCP にのみ必要なロジック — たとえば複数モデルからのデ�
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

@@ -122,12 +122,16 @@ module RedmineMcp
         }
       end
 
-      def object_output(properties = nil, **kwargs)
-        envelope_output(open_object(schema_properties(properties, kwargs)))
+      def object_output(properties = nil, required: nil, **kwargs)
+        obj = open_object(schema_properties(properties, kwargs))
+        obj[:required] = Array(required).map(&:to_s) if required.present?
+        envelope_output(obj)
       end
 
-      def list_output(properties = nil, **kwargs)
-        list_envelope_output(open_object(schema_properties(properties, kwargs)))
+      def list_output(properties = nil, required: nil, **kwargs)
+        obj = open_object(schema_properties(properties, kwargs))
+        obj[:required] = Array(required).map(&:to_s) if required.present?
+        list_envelope_output(obj)
       end
 
       def data_schema_described?(schema)
@@ -167,9 +171,10 @@ module RedmineMcp
 
       def normalize(schema, object_defaults: false)
         schema = schema.deep_symbolize_keys
+        combinator_only = %i[oneOf anyOf allOf].any? { |key| schema[key].present? }
         if object_defaults
           schema[:type] ||= 'object'
-          schema[:properties] ||= {}
+          schema[:properties] ||= {} if schema[:properties].blank? && !combinator_only
         end
         walk(schema)
         schema
@@ -181,7 +186,9 @@ module RedmineMcp
 
       def tighten!(schema)
         if object_like?(schema)
-          schema[:additionalProperties] = false unless schema.key?(:additionalProperties)
+          combinator_root = schema[:properties].blank? &&
+                            %i[oneOf anyOf allOf].any? { |key| schema[key].present? }
+          schema[:additionalProperties] = false unless combinator_root || schema.key?(:additionalProperties)
           schema[:properties]&.each_value { |property| walk(property) }
         end
         walk(schema[:items])

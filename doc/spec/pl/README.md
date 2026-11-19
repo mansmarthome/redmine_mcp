@@ -166,7 +166,7 @@ Serwer udostępnia narzędzia do projektów, zgłoszeń, użytkowników, rejestr
 ### Niezawodność operacji
 
 - `expected_updated_at` — przy wrażliwych operacjach update/delete.
-- `idempotency_key` — przy `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — przy `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Limity
 
@@ -190,7 +190,7 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | Narzędzie | Opis |
 |------|-------------|
 | `list_projects` | Lista projektów |
-| `get_project` | Szczegóły projektu |
+| `get_project` | Szczegóły projektu; opcjonalnie `include_modules` dla modułów |
 | `list_project_issue_custom_fields` | Niestandardowe pola zgłoszeń projektu |
 | `summarize_project_status` | Podsumowanie metryk projektu budowane przez serwer za N dni |
 | `list_project_activities` | Kanał aktywności projektu (zdarzenia, nie typy aktywności wpisów czasu) |
@@ -202,7 +202,6 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `list_project_members` | Członkowie projektu i ich role |
 | `list_project_member_candidates` | Użytkownicy i grupy, które można dodać do projektu |
 | `list_roles` | Role, którymi można zarządzać w projekcie |
-| `get_project_modules` | Włączone moduły projektu |
 | `add_project_member` | Dodanie członka |
 | `update_project_member` | Zmiana ról członka |
 | `remove_project_member` | Usunięcie członka |
@@ -214,10 +213,7 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `get_issue` | Szczegóły zgłoszenia (dziennik, załączniki, pola niestandardowe itd.) |
 | `list_issues` | Lista zgłoszeń z filtrami i paginacją |
 | `search_issues` | Wyszukiwanie tekstowe po zgłoszeniach |
-| `run_issue_query` | Uruchomienie zapisanego zapytania zgłoszeń |
 | `get_issue_form_options` | Dozwolone wartości pól formularza zgłoszenia (jedno wywołanie) |
-| `validate_issue_create` | Walidacja parametrów tworzenia zgłoszenia bez zapisu |
-| `validate_issue_update` | Walidacja parametrów aktualizacji zgłoszenia bez zapisu |
 | `create_issue` | Utworzenie zgłoszenia |
 | `update_issue` | Aktualizacja atrybutów zgłoszenia i załączników |
 | `add_issue_note` | Dodanie komentarza do zgłoszenia (opcjonalnie z załącznikami) |
@@ -226,11 +222,9 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `list_issue_relations` | Lista relacji zgłoszenia |
 | `create_issue_relation` | Utworzenie relacji między zgłoszeniami |
 | `delete_issue_relation` | Usunięcie relacji między zgłoszeniami |
-| `list_subtasks` | Podzadania |
 | `add_issue_watcher` | Dodanie obserwatora |
 | `remove_issue_watcher` | Usunięcie obserwatora |
 | `update_issue_note` | Edycja wpisu dziennika |
-| `set_issue_note_private` | Zmiana prywatności wpisu dziennika |
 | `get_private_notes` | Tylko prywatne komentarze |
 | `list_issue_categories` | Kategorie zgłoszeń projektu |
 | `create_issue_category` | Utworzenie kategorii |
@@ -252,19 +246,16 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `create_time_entry` | Utworzenie wpisu czasu |
 | `update_time_entry` | Aktualizacja wpisu czasu |
 | `list_time_entry_activities` | Typy aktywności wpisów czasu (nie kanał zdarzeń projektu) |
-| `import_time_entries` | Masowy import wpisów czasu |
 
 ### Dane referencyjne
 
 | Narzędzie | Opis |
 |------|-------------|
-| `list_trackers` | Wszystkie trackery |
-| `list_project_trackers` | Trackery projektu |
+| `list_trackers` | Trackery zgłoszeń (wszystkie lub z `project` — według projektu) |
 | `list_issue_statuses` | Statusy zgłoszeń |
 | `list_issue_priorities` | Priorytety zgłoszeń |
-| `admin_list_users` | Użytkownicy z filtrami (tylko administrator) |
 | `get_current_user` | Bieżący użytkownik |
-| `list_queries` | Zapisane zapytania (metadane; wykonanie to `run_issue_query`) |
+| `list_queries` | Zapisane zapytania (metadane; wykonanie to `list_issues` z `query_id`) |
 
 ### Wyszukiwanie i Wiki
 
@@ -277,6 +268,17 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `update_wiki_page` | Aktualizacja strony Wiki |
 | `delete_wiki_page` | Usunięcie strony Wiki |
 | `rename_wiki_page` | Zmiana nazwy strony Wiki |
+
+### Repository / SCM
+
+| Narzędzie | Opis |
+|------|-------------|
+| `list_repositories` | Repozytoria SCM projektu |
+| `get_repository` | Metadane repozytorium i domyślna gałąź |
+| `list_revisions` | Cache'owane changesety (paginowane) |
+| `get_revision` | Jeden changeset z opcjonalnymi zmianami plików |
+| `get_repository_file` | Lista katalogu lub zawartość pliku |
+| `get_repository_diff` | Unified diff z limitami rozmiaru MCP |
 
 ### Fora
 
@@ -293,8 +295,7 @@ Przy cache lokalnym dla procesu gwarancje rate limiting i idempotencji obowiązu
 | `list_project_files` | Pliki projektu |
 | `upload_file` | Przesłanie pliku |
 | `delete_attachment` | Usunięcie załącznika |
-| `get_attachment` | Metadane załącznika i `content_url` |
-| `download_attachment` | Zawartość załącznika (`content_base64`, do 10 MiB) |
+| `get_attachment` | Metadane załącznika, `content_url`, opcjonalnie `content_base64` (`include_content`, do 10 MiB) |
 
 ### Narzędzia pomocnicze
 

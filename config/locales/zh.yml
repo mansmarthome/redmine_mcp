@@ -9,13 +9,18 @@ zh:
     - 若需要语义搜索但 capabilities.issue_search.semantic.available 为 false，请回退到 redmine_search_issues，并说明此次为词法而非语义搜索。
     - 当 capabilities.issue_search.cross_resource 可用时，使用 redmine_search_all 跨资源发现（含 Wiki）。
     - 若 project 未知，请先调用 redmine_list_projects。project 必须是字符串，如 "1" 或 "ecookbook"，不能是 JSON 数字。
-    - 在 redmine_create_issue 或 redmine_update_issue 之前，若跟踪器、状态、经办人或自定义字段 ID 未知，请调用 redmine_get_issue_form_options。可选试运行：redmine_validate_issue_create / redmine_validate_issue_update。
+    - 在 redmine_create_issue 或 redmine_update_issue 之前，若跟踪器、状态、经办人或自定义字段 ID 未知，请调用 redmine_get_issue_form_options.
     - 仅添加评论而不改工单字段时使用 redmine_add_issue_note。关注者使用 redmine_add_issue_watcher 或 redmine_remove_issue_watcher。
-    - 项目内用户查询使用 redmine_list_users；全局管理员目录仅使用 redmine_admin_list_users。
+    - 项目内用户查询使用 redmine_list_users；无 project 时管理员可用 name 或 group_id 筛选全局目录。
     - 仅在用户明确需要日志或私有备注时请求 redmine_get_private_notes 或 include_journals。
     - 破坏性工具（如 redmine_delete_issue）可能需要确认；若返回 INVALID_STATE，请带上所需 confirm_* 参数重试。
     - 向用户引用工单时，请复制工具结果中的 url 字段。不要自行编造主机名。
     - 除 redmine_* 核心工具外，已安装插件的工具可能以各自前缀出现。
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: 请使用 CommonMark Markdown 编写问题描述、备注和 Wiki 正文（当前 Redmine 文本格式）。
+  text_redmine_mcp_server_instructions_text_formatting_textile: 请使用 Textile 编写问题描述、备注和 Wiki 正文（当前 Redmine 文本格式）。
+  text_redmine_mcp_server_instructions_text_formatting_none: 请使用纯文本编写问题描述、备注和 Wiki 正文（Redmine 文本格式已禁用）。
+  text_redmine_mcp_server_instructions_text_formatting_other: Redmine 中当前启用自定义格式 %{format_name}。若不清楚其语法，请在添加标记前先确认。
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: 已配置的文本格式 %{format_name} 不可用（提供该格式的插件可能已卸载）。请使用纯文本编写问题描述、备注和 Wiki 正文。
   text_redmine_mcp_server_instructions_read_only: 当前已启用 MCP 只读模式，写入操作被阻止。
   label_redmine_mcp_enabled: 启用 MCP
   label_redmine_mcp_read_only: 只读模式
@@ -52,6 +57,14 @@ zh:
   error_mcp_boards_not_enabled: 此项目未启用论坛模块
   error_mcp_board_not_found: 未找到论坛
   error_mcp_board_message_not_found: 未找到论坛消息
+  error_mcp_repository_not_enabled: 此项目未启用仓库模块
+  error_mcp_repository_not_found: 未找到仓库
+  error_mcp_revision_not_found: 未找到修订版本
+  error_mcp_repository_path_not_found: 未找到仓库路径
+  error_mcp_repository_path_not_allowed: 仓库路径不允许
+  error_mcp_invalid_revision: 无效的修订参数
+  error_mcp_repository_file_too_large: 仓库文件超过允许大小
+  error_mcp_scm_command_failed: "SCM 命令失败"
   error_mcp_query_not_found: 未找到已保存查询
   error_mcp_activity_window_too_long: 活动时间窗口不得超过 90 天
   error_mcp_wiki_not_found: 未找到 Wiki

@@ -100,25 +100,6 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
     assert_equal 'updated by mcp', payload.dig(:data, :comments)
   end
 
-  test 'import_time_entries creates entries' do
-    before = TimeEntry.count
-    payload = invoke_mcp_tool(
-      'import_time_entries',
-      user: @admin,
-      args: {
-        entries: [
-          {project: 'ecookbook', hours: 1.0, comments: 'import one'},
-          {issue_id: 1, hours: 0.25, comments: 'import two'},
-        ]
-      }
-    )
-
-    assert_mcp_ok(payload)
-    assert_equal 2, payload.dig(:data, :succeeded)
-    assert_equal 0, payload.dig(:data, :failed)
-    assert_equal before + 2, TimeEntry.count
-  end
-
   test 'create_issue creates issue' do
     before = Issue.count
     payload = invoke_mcp_tool(
@@ -173,6 +154,66 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
   ensure
     tracker.core_fields = original_fields
     tracker.save!
+  end
+
+  test 'update_issue moves issue to another allowed project' do
+    source, target, user = setup_issue_move_projects
+    issue = Issue.generate!(
+      project: source,
+      author: user,
+      subject: 'MCP move issue',
+      tracker_id: 1,
+      status_id: 1
+    )
+
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: user,
+      args: {issue_id: issue.id, project: target.identifier}
+    )
+
+    assert_mcp_ok(payload)
+    assert_equal target.id, payload.dig(:data, :project, :id)
+    assert_equal target.id, issue.reload.project_id
+  end
+
+  test 'update_issue returns NOT_FOUND for unknown project without FORBIDDEN' do
+    issue = Issue.find(1)
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: @admin,
+      args: {issue_id: issue.id, project: 'mcp-missing-project-identifier'}
+    )
+
+    assert_equal false, payload[:ok]
+    assert_equal 'NOT_FOUND', payload.dig(:error, :code)
+    assert_not_equal 'FORBIDDEN', payload.dig(:error, :code)
+  end
+
+  test 'update_issue rejects move to target without add_issues' do
+    source, user, = generate_stats_project(permissions: %i[view_issues add_issues edit_issues])
+    target = setup_issue_move_target_project
+    view_only_role = Role.generate!(permissions: %i[view_issues])
+    User.add_to_project(user, target, view_only_role)
+    issue = Issue.generate!(
+      project: source,
+      author: user,
+      subject: 'MCP move forbidden target',
+      tracker_id: 1,
+      status_id: 1
+    )
+    project_id_was = issue.project_id
+
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: user,
+      args: {issue_id: issue.id, project: target.identifier}
+    )
+
+    assert_equal false, payload[:ok]
+    assert_not_equal 'FORBIDDEN', payload.dig(:error, :code)
+    assert_includes Array(payload.dig(:error, :details, :rejected_fields)), 'project_id'
+    assert_equal project_id_was, issue.reload.project_id
   end
 
   test 'add_issue_note adds a comment without changing attributes' do
@@ -326,6 +367,75 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
 
     assert_mcp_ok(payload)
     assert_nil issue.reload.assigned_to_id
+  end
+
+  test 'update_issue sets parent_issue_id' do
+    project = Project.find(1)
+    parent = Issue.generate!(project: project, author: @admin, subject: 'MCP parent for subtask update')
+    child = Issue.generate!(
+      project: project,
+      author: @admin,
+      subject: 'MCP child for subtask update',
+      tracker_id: 1,
+      status_id: 1
+    )
+
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: @admin,
+      args: {issue_id: child.id, parent_issue_id: parent.id}
+    )
+
+    assert_mcp_ok(payload)
+    assert_equal parent.id, payload.dig(:data, :parent_id)
+    assert_equal parent.id, child.reload.parent_id
+  end
+
+  test 'update_issue clears parent_issue_id with null' do
+    project = Project.find(1)
+    parent = Issue.generate!(project: project, author: @admin, subject: 'MCP parent for subtask clear')
+    child = Issue.generate!(
+      project: project,
+      author: @admin,
+      subject: 'MCP child for subtask clear',
+      parent_issue_id: parent.id
+    )
+
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: @admin,
+      args: {issue_id: child.id, parent_issue_id: nil}
+    )
+
+    assert_mcp_ok(payload)
+    assert_nil payload.dig(:data, :parent_id)
+    assert_nil child.reload.parent_id
+  end
+
+  test 'update_issue rejects parent_issue_id without manage_subtasks' do
+    project = Project.find(1)
+    parent = Issue.generate!(project: project, author: @admin, subject: 'MCP parent for subtask permission')
+    child = Issue.generate!(
+      project: project,
+      author: @admin,
+      subject: 'MCP child for subtask permission',
+      tracker_id: 1,
+      status_id: 1
+    )
+    role = Role.generate!(permissions: %i[view_issues edit_issues])
+    user = User.generate!
+    User.add_to_project(user, project, role)
+
+    payload = invoke_mcp_tool(
+      'update_issue',
+      user: user,
+      args: {issue_id: child.id, parent_issue_id: parent.id}
+    )
+
+    assert_equal false, payload[:ok]
+    assert_equal 'VALIDATION_ERROR', payload.dig(:error, :code)
+    assert_includes Array(payload.dig(:error, :details, :rejected_fields)), 'parent_issue_id'
+    assert_nil child.reload.parent_id
   end
 
   test 'update_issue uploads without edit_issues' do
@@ -526,12 +636,11 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
 
     assert_mcp_ok(added)
     assert_equal 3, added.dig(:data, :principal_id)
-    assert_equal 3, added.dig(:data, :user_id)
 
     removed = invoke_mcp_tool(
       'remove_issue_watcher',
       user: @admin,
-      args: {issue_id: 1, user_id: 3}
+      args: {issue_id: 1, principal_id: 3}
     )
 
     assert_mcp_ok(removed)
@@ -552,7 +661,6 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
 
     assert_mcp_ok(added)
     assert_equal 10, added.dig(:data, :principal_id)
-    assert_equal 10, added.dig(:data, :user_id)
     issue.reload
 
     assert issue.watchers.exists?(user_id: 10)
@@ -569,17 +677,17 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
     assert_not issue.watchers.exists?(user_id: 10)
   end
 
-  test 'add_issue_watcher rejects principal_id together with user_id' do
+  test 'add_issue_watcher rejects unknown principal_id' do
     payload = invoke_mcp_tool(
       'add_issue_watcher',
       user: @admin,
-      args: {issue_id: 1, principal_id: 3, user_id: 3}
+      args: {issue_id: 1}
     )
 
     assert_equal false, payload[:ok]
   end
 
-  test 'update_issue_note and set_issue_note_private' do
+  test 'update_issue_note changes notes and privacy' do
     updated = invoke_mcp_tool(
       'update_issue_note',
       user: @admin,
@@ -599,13 +707,33 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
     assert_equal '', cleared.dig(:data, :notes)
 
     privacy = invoke_mcp_tool(
-      'set_issue_note_private',
+      'update_issue_note',
       user: @admin,
-      args: {journal_id: 1, is_private: true}
+      args: {journal_id: 1, private_notes: true}
     )
 
     assert_mcp_ok(privacy)
     assert privacy.dig(:data, :private_notes)
+    assert_kind_of String, privacy.dig(:data, :notes)
+
+    privacy_only = invoke_mcp_tool(
+      'update_issue_note',
+      user: @admin,
+      args: {journal_id: 1, private_notes: false}
+    )
+
+    assert_mcp_ok(privacy_only)
+    assert_equal false, privacy_only.dig(:data, :private_notes)
+  end
+
+  test 'update_issue_note requires notes or private_notes' do
+    payload = invoke_mcp_tool(
+      'update_issue_note',
+      user: @admin,
+      args: {journal_id: 1}
+    )
+
+    assert_equal false, payload[:ok]
   end
 
   test 'update_issue_note cannot edit an invisible private journal' do
@@ -641,9 +769,9 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
     assert_equal user.id, journal.updated_by_id
 
     privacy = invoke_mcp_tool(
-      'set_issue_note_private',
+      'update_issue_note',
       user: user,
-      args: {journal_id: journal.id, is_private: true}
+      args: {journal_id: journal.id, private_notes: true}
     )
     via_update = invoke_mcp_tool(
       'update_issue_note',
@@ -904,5 +1032,22 @@ class RedmineMcpToolWriteExecutionTest < RedmineMcpTestCase
 
     assert_mcp_ok(history)
     assert_mcp_ok(allowed_update)
+  end
+
+private
+
+  def setup_issue_move_projects
+    source, user, role = generate_stats_project(permissions: %i[view_issues add_issues edit_issues])
+    target = setup_issue_move_target_project
+    User.add_to_project(user, target, role)
+    [source, target, user]
+  end
+
+  def setup_issue_move_target_project
+    target = Project.generate!
+    target.trackers << Tracker.find(1) unless target.trackers.exists?(id: 1)
+    target.enabled_module_names = %w[issue_tracking]
+    target.save!
+    target
   end
 end

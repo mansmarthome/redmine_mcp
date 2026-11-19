@@ -37,7 +37,7 @@ Zapewnić jednolite podejście do integracji wtyczek Redmine z AI bez duplikowan
 
 - Wtyczka rozszerzająca może zarejestrować dowolną liczbę narzędzi.
 - Każde narzędzie ma: nazwę, opis, schemat wejścia, schemat wyjścia, wymaganie uprawnienia i handler.
-- Pełna nazwa narzędzia: `redmine_<plugin_id>_<name>`, na przykład `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Pełna nazwa narzędzia: `redmine_<plugin_id>_<name>`, na przykład `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - Zduplikowane nazwy narzędzi są zabronione.
 - Narzędzie pojawia się w MCP tylko dla użytkowników z odpowiednimi uprawnieniami.
 - Narzędzie rozszerzenia w zakresie zgłoszenia może wymagać włączonego modułu projektu Redmine (identyfikator modułu nie musi odpowiadać id wtyczki). W `tools/list` takie narzędzie jest widoczne, jeśli użytkownik ma zadeklarowane uprawnienie w co najmniej jednym widocznym projekcie z tym modułem. Bez wymagania modułu wystarczy uprawnienie w co najmniej jednym widocznym projekcie. Wywołanie nadal sprawdza konkretne zgłoszenie: widoczność, uprawnienie w jego projekcie i włączony moduł; w przeciwnym razie odpowiedź to „not found”.

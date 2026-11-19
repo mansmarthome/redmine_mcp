@@ -38,6 +38,9 @@ Zapewnić, że MCP nie omija zabezpieczeń Redmine i użytkownicy mogą wykonywa
 - Narzędzie pojawia się w `tools/list` tylko wtedy, gdy użytkownik ma uprawnienie do jego użycia.
 - Uprawnienia są sprawdzane ponownie przy wywołaniu narzędzia.
 - Dane są filtrowane według reguł widoczności Redmine (projekty, zgłoszenia, członkowie).
+- Jeśli w argumentach jawnie podano `project` (id lub identifier), którego nie ma lub który jest niewidoczny dla bieżącego użytkownika, wywołanie zwraca `NOT_FOUND` („nie znaleziono projektu”) **przed** sprawdzeniem uprawnienia narzędzia. Dotyczy to symbol-permission i Proc-permission. Niewidoczny projekt jest traktowany jak nieistniejący: w tym przypadku nie zwraca się osobnego `FORBIDDEN`.
+- Jeśli projekt istnieje i jest widoczny, ale brakuje uprawnienia do operacji — `FORBIDDEN`.
+- Wywołania bez parametru `project` nie są objęte tą regułą.
 
 ### Uprawnienia zasobów i promptów
 
@@ -61,6 +64,8 @@ Zapewnić, że MCP nie omija zabezpieczeń Redmine i użytkownicy mogą wykonywa
 | Nieprawidłowy lub brakujący klucz API | HTTP 401 |
 | Brak uprawnienia Use MCP | HTTP 403 |
 | Brak uprawnienia do konkretnego narzędzia | Narzędzie nieobecne w `tools/list`; bezpośrednie wywołanie — błąd „Permission denied” |
+| Argumenty zawierają nieistniejący lub niewidoczny `project` | `NOT_FOUND` (nie znaleziono projektu), przed sprawdzeniem uprawnienia narzędzia |
+| Projekt jest widoczny, ale brakuje uprawnienia do operacji | `FORBIDDEN` |
 | Encja niedostępna dla użytkownika | Odpowiedź narzędzia z opisem błędu (na przykład „Issue not found”) |
 
 ## Scenariusze testowe

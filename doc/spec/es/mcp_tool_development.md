@@ -419,7 +419,7 @@ Las descripciones de herramientas similares deben explicar explícitamente la di
 Por ejemplo:
 
 - `redmine_list_project_members` — miembros de un proyecto concreto y sus roles;
-- `redmine_admin_list_users` — lista global de usuarios de la instalación, requiere derechos administrativos.
+- `redmine_list_users` sin `project` — directorio global de usuarios (solo admin); con `project` — miembros del proyecto.
 
 ### 5.5. Instrucciones a nivel de servidor
 
@@ -429,7 +429,7 @@ Las instrucciones deben añadir contexto no presente en descripciones individual
 
 ```text
 Use redmine_search_issues antes de redmine_get_issue cuando el ID de incidencia sea desconocido.
-Antes de crear o actualizar una incidencia, llame a redmine_list_project_trackers y
+Antes de crear o actualizar una incidencia, llame a redmine_list_trackers (con `project` opcional) y
 redmine_list_project_issue_custom_fields cuando sus IDs aún no se conozcan.
 Las notas privadas solo deben solicitarse cuando el usuario las necesite explícitamente y tenga
 el permiso requerido.
@@ -1463,7 +1463,7 @@ Ejemplo abreviado de herramienta de escritura con `title` obligatorio y `outputS
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1728,6 @@ seguir:
 5. eliminar alias tras período acordado (no antes de la siguiente versión major, salvo que se acuerde otro período);
 6. enviar `notifications/tools/list_changed` si el servidor declara `listChanged`.
 
-Ejemplos actuales (véase [03-core-tools.md](03-core-tools.md)): `redmine_list_all_users` → `redmine_admin_list_users`; `redmine_list_files` → `redmine_list_project_files`; `redmine_delete_file` → `redmine_delete_attachment`; `redmine_get_server_info` → `redmine_get_mcp_info`. Un alias se acepta en `tools/call` y no se publica en `tools/list`.
-
 ### 15.3. Cambio de descripciones
 
 La descripción afecta la selección de herramientas del modelo y se considera cambio de comportamiento. En cambio sustancial de descripción DEBERÍA revisar ejemplos de selección LLM o realizar revisión repetida de selección.
@@ -1834,7 +1832,7 @@ Si el modelo puede cumplir la intención con herramienta separada sin adivinar `
 
 ### 18.3. Nombres
 
-- El nombre DEBE empezar con `redmine_`; luego — `plugin_id` y `<verb>_<entity>`: `redmine_redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
+- El nombre DEBE empezar con `redmine_`; luego — `plugin_id` y `<verb>_<entity>`: `redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
 - Verbos y prohibición de `manage_*` — según §4.2 y §3.1.
 - No copiar nombres de herramientas core ni publicar segunda herramienta con la misma intención bajo otro nombre.
 
@@ -2030,7 +2028,7 @@ Referencia `redmine_create_issue`. Cuando cambie el formato de error o el envolt
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2054,7 @@ Referencia `redmine_create_issue`. Cuando cambie el formato de error o el envolt
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

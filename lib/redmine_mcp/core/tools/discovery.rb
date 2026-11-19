@@ -25,10 +25,8 @@ module RedmineMcp
 
         def register!
           register_list_trackers
-          register_list_project_trackers
           register_list_issue_statuses
           register_list_issue_priorities
-          register_admin_list_users
           register_get_current_user
           register_list_queries
         end
@@ -38,38 +36,18 @@ module RedmineMcp
             plugin_id: PLUGIN_ID,
             name: 'list_trackers',
             title: 'List issue trackers',
-            description: 'Return a paginated list of all issue tracker types defined in the Redmine instance (for example Bug, Feature, Support). Each item includes id, name, and description. Use ' \
-                         'before redmine_create_issue or redmine_update_issue when tracker_id is unknown. For trackers enabled in one project only, use redmine_list_project_trackers with project ' \
-                         'instead. Default ' \
-                         'limit 25, maximum 100. Does not modify Redmine.',
-            input_schema: {properties: Helpers::PAGINATION_INPUT.dup},
+            description: 'Return a paginated list of issue tracker types. Without project: all trackers defined in the Redmine instance (for example Bug, Feature, Support); each item includes id, ' \
+                         'name, and description. With optional project: only trackers enabled for that project; description is an empty string. Use before redmine_create_issue or ' \
+                         'redmine_update_issue when tracker_id is unknown. Call redmine_list_projects when project is unknown. Default limit 25, maximum 100. Does not modify Redmine.',
+            input_schema: {
+              properties: {
+                project: Helpers::PROJECT_SCHEMA
+              }.merge(Helpers::PAGINATION_INPUT)
+            },
             output_schema: RedmineMcp::Core::OutputSchemas::LIST_TRACKERS,
             permission: :view_issues,
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
             handler: method(:list_trackers)
-          )
-        end
-
-        def register_list_project_trackers
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'list_project_trackers',
-            title: 'List project trackers',
-            description: 'Return a paginated list of issue trackers enabled for one project. Each item includes id and name. Use before redmine_create_issue or redmine_update_issue when tracker_id ' \
-                         'must match ' \
-                         'project configuration. For the global tracker catalog with descriptions, use redmine_list_trackers instead. Requires project; call redmine_list_projects first when it is ' \
-                         'unknown. ' \
-                         'Default limit 25, maximum 100. Does not modify Redmine.',
-            input_schema: {
-              properties: {
-                project: Helpers::PROJECT_SCHEMA
-              }.merge(Helpers::PAGINATION_INPUT),
-              required: ['project']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::LIST_PROJECT_TRACKERS,
-            permission: :view_issues,
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:list_project_trackers)
           )
         end
 
@@ -105,28 +83,6 @@ module RedmineMcp
           )
         end
 
-        def register_admin_list_users
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'admin_list_users',
-            title: 'Admin list users',
-            description: 'Return a paginated global directory of active Redmine users. Requires administrator permission. Optional filters: name substring (login, first name, last name, or email) ' \
-                         'and group_id. Use for admin workflows when project scope is irrelevant; for project member lookup or assignment, prefer redmine_list_users with project. Each item ' \
-                         'includes id, login, name parts, mail, and created_on. Does not modify Redmine.',
-            input_schema: {
-              properties: {
-                name: {type: 'string', description: 'Case-insensitive substring filter'},
-                group_id: {type: 'integer', minimum: 1, description: 'Filter users who belong to a specific group'}
-              }.merge(Helpers::PAGINATION_INPUT)
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::LIST_ALL_USERS,
-            permission: ->(user, _args, _project) { user.admin? },
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            aliases: ['list_all_users'],
-            handler: method(:admin_list_users)
-          )
-        end
-
         def register_get_current_user
           Registry.instance.register_tool(
             plugin_id: PLUGIN_ID,
@@ -149,8 +105,8 @@ module RedmineMcp
             name: 'list_queries',
             title: 'List saved queries',
             description: 'Return a paginated list of saved issue queries visible to the current user (private and public). Each item includes id, name, is_public, and project_id when the query is ' \
-                         'project-scoped. Use to discover query_id before redmine_run_issue_query. Does not execute the query or return matching issues. Default limit 25, maximum 100. Does not ' \
-                         'modify Redmine.',
+                         'project-scoped. Use to discover query_id before redmine_list_issues with query_id. Does not execute the query or return matching issues. ' \
+                         'Default limit 25, maximum 100. Does not modify Redmine.',
             input_schema: {properties: Helpers::PAGINATION_INPUT.dup},
             output_schema: RedmineMcp::Core::OutputSchemas::LIST_QUERIES,
             permission: :view_issues,
@@ -159,23 +115,22 @@ module RedmineMcp
           )
         end
 
-        def list_trackers(args, _context)
+        def list_trackers(args, context)
           limit = Helpers.clamp_limit(args[:limit])
           offset = Helpers.clamp_offset(args[:offset])
+          if args[:project].present?
+            user = context[:user]
+            project = Helpers.find_project(user, args[:project])
+            return Helpers.error_result(:error_mcp_project_not_found) unless project
+
+            scope = Helpers.with_id_order(project.trackers.sorted)
+            return Helpers.paginate_collection(scope, limit: limit, offset: offset) do |tracker|
+              {id: Helpers.integer_id(tracker.id), name: tracker.name, description: ''}
+            end
+          end
+
           Helpers.paginate_collection(Helpers.with_id_order(Tracker.sorted), limit: limit, offset: offset) do |tracker|
             {id: Helpers.integer_id(tracker.id), name: tracker.name, description: tracker.description.to_s}
-          end
-        end
-
-        def list_project_trackers(args, context)
-          user = context[:user]
-          project = Helpers.find_project(user, args[:project])
-          return Helpers.error_result(:error_mcp_project_not_found) unless project
-
-          limit = Helpers.clamp_limit(args[:limit])
-          offset = Helpers.clamp_offset(args[:offset])
-          Helpers.paginate_collection(Helpers.with_id_order(project.trackers.sorted), limit: limit, offset: offset) do |tracker|
-            {id: Helpers.integer_id(tracker.id), name: tracker.name}
           end
         end
 
@@ -198,31 +153,6 @@ module RedmineMcp
               is_default: priority.is_default?
             }
           end
-        end
-
-        def admin_list_users(args, context)
-          user = context[:user]
-          return Helpers.error_result(:error_mcp_permission_denied) unless user.admin?
-
-          limit = Helpers.clamp_limit(args[:limit])
-          offset = Helpers.clamp_offset(args[:offset])
-          scope = User.active
-          scope = scope.like(args[:name]) if args[:name].present?
-          scope = scope.in_group(args[:group_id]) if args[:group_id].present?
-          scope = scope.order(:login, :id)
-
-          total = scope.count
-          items = scope.offset(offset).limit(limit).map do |item|
-            {
-              id: Helpers.integer_id(item.id),
-              login: item.login,
-              firstname: item.firstname,
-              lastname: item.lastname,
-              mail: item.mail,
-              created_on: item.created_on
-            }
-          end
-          Helpers.paginated_list(items, total_count: total, limit: limit, offset: offset)
         end
 
         def get_current_user(_args, context)

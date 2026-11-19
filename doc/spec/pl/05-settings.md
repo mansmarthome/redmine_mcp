@@ -74,11 +74,14 @@ Ustawienia są dostępne w **Administration → Plugins → Redmine MCP → Conf
 - Wcześniej zapisana flaga auto-load rozszerzeń jest ignorowana: ładowanie rozszerzeń zależy od Enable MCP.
 - Wcześniej zapisany poziom logowania jest ignorowany i usuwany przy zapisie ustawień.
 - Przy włączonym trybie Read-only narzędzia zapisu pozostają w `tools/list` (jeśli użytkownik ma uprawnienia), ale zwracają błąd przy wywołaniu; operacje odczytu narzędzi łączonych nadal działają.
+- Jeśli baza danych nie została jeszcze utworzona lub tabela ustawień jest niedostępna, odczyt ustawień wtyczki jest traktowany jako „ustawienia niedostępne”: MCP uznaje się za wyłączone, a autoload rozszerzeń nie jest wykonywany. Nie może to przerywać startu Redmine ani poleceń takich jak `db:create`.
+- Inne błędy połączenia z bazą nie są maskowane jako „brak ustawień”: tylko brak bazy/tabeli settings daje bezpieczny fallback do pustych ustawień; inne awarie połączenia nie są zastępowane tym zachowaniem.
 
 ## Obsługa błędów
 
 - Błędy ustawień nie mogą blokować startu Redmine.
 - Błędy logowania nie wpływają na przetwarzanie żądań MCP.
+- Brak bazy danych przy odczycie ustawień wtyczki nie przerywa inicjalizacji aplikacji ani tworzenia bazy.
 
 ## Scenariusze testowe
 
@@ -89,3 +92,4 @@ Ustawienia są dostępne w **Administration → Plugins → Redmine MCP → Conf
 5. Strona ustawień pokazuje nazwy tylko zainstalowanych wtyczek z integracją MCP; każda ma checkbox.
 6. Wtyczka bez integracji MCP nie jest pokazywana na stronie ustawień.
 7. Gdy MCP jest wyłączone, rozszerzenia z innych wtyczek nie są ładowane przy starcie.
+8. Przy braku bazy odczyt ustawień wtyczki nie przerywa boot ani `db:create`; MCP pozostaje wyłączony do czasu dostępności ustawień.

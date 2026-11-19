@@ -23,7 +23,7 @@ module RedmineMcp
 
     class << self
       def plugin_settings
-        return {} unless ActiveRecord::Base.connection.table_exists?('settings')
+        return {} unless settings_table_available?
 
         Setting.plugin_redmine_mcp || {}
       end
@@ -92,7 +92,24 @@ module RedmineMcp
         spec && spec.version >= Gem::Version.new('0.23.0')
       end
 
+      def effective_text_formatting
+        format_name = Setting.text_formatting.to_s
+        return format_name if format_name.empty? || text_formatting_registered?(format_name)
+
+        ''
+      end
+
+      def text_formatting_registered?(format_name)
+        Redmine::WikiFormatting.format_names.include?(format_name.to_s)
+      end
+
     private
+
+      def settings_table_available?
+        ActiveRecord::Base.connection.table_exists?('settings')
+      rescue ActiveRecord::NoDatabaseError
+        false
+      end
 
       def disabled_extensions_for_save(prepared)
         if prepared.key?('enabled_extensions')

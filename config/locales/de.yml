@@ -9,13 +9,18 @@ de:
     - Wird semantische Suche angefordert, ist capabilities.issue_search.semantic.available aber false, fallen Sie auf redmine_search_issues zurück und geben Sie an, dass es sich um lexikalische statt semantische Suche handelt.
     - Verwenden Sie redmine_search_all für die Suche über mehrere Ressourcentypen inklusive Wiki, wenn capabilities.issue_search.cross_resource verfügbar ist.
     - Wenn project unbekannt ist, rufen Sie zuerst redmine_list_projects auf. project muss eine Zeichenkette wie "1" oder "ecookbook" sein, keine JSON-Zahl.
-    - Vor redmine_create_issue oder redmine_update_issue rufen Sie redmine_get_issue_form_options auf, wenn Tracker-, Status-, Assignee- oder Custom-Field-IDs unbekannt sind. Optionaler Dry-Run: redmine_validate_issue_create / redmine_validate_issue_update.
+    - Vor redmine_create_issue oder redmine_update_issue rufen Sie redmine_get_issue_form_options auf, wenn Tracker-, Status-, Assignee- oder Custom-Field-IDs unbekannt sind.
     - Um einen Kommentar ohne Änderung der Ticketfelder hinzuzufügen, verwenden Sie redmine_add_issue_note. Beobachter ändern Sie über redmine_add_issue_watcher oder redmine_remove_issue_watcher.
-    - Verwenden Sie redmine_list_users für projektspezifische Benutzersuche; redmine_admin_list_users nur für das globale Admin-Verzeichnis.
+    - Verwenden Sie redmine_list_users für projektspezifische Benutzersuche; ohne project kann ein Administrator den globalen Katalog mit name oder group_id filtern.
     - Fordern Sie redmine_get_private_notes oder include_journals nur an, wenn der Benutzer Journals oder private Kommentare explizit benötigt.
     - Destruktive Tools wie redmine_delete_issue können eine Bestätigung erfordern; bei INVALID_STATE den Aufruf mit den angeforderten confirm_*-Parametern wiederholen.
     - Beim Zitieren eines Tickets gegenüber dem Benutzer das Feld url aus dem Tool-Ergebnis kopieren. Keinen Hostnamen erfinden.
     - Zusätzlich zu redmine_*-Core-Tools können Tools installierter Plugins mit eigenen Präfixen erscheinen.
+  text_redmine_mcp_server_instructions_text_formatting_common_mark: Schreiben Sie Aufgabenbeschreibungen, Notizen und Wiki-Texte im CommonMark-Markdown-Format (aktive Redmine-Textformatierung).
+  text_redmine_mcp_server_instructions_text_formatting_textile: Schreiben Sie Aufgabenbeschreibungen, Notizen und Wiki-Texte im Textile-Format (aktive Redmine-Textformatierung).
+  text_redmine_mcp_server_instructions_text_formatting_none: Schreiben Sie Aufgabenbeschreibungen, Notizen und Wiki-Texte als Klartext (Redmine-Textformatierung ist deaktiviert).
+  text_redmine_mcp_server_instructions_text_formatting_other: In Redmine ist das benutzerdefinierte Format %{format_name} aktiv. Wenn die Syntax unbekannt ist, klären Sie sie, bevor Sie Markup hinzufügen.
+  text_redmine_mcp_server_instructions_text_formatting_unavailable: Das konfigurierte Textformat %{format_name} ist nicht verfügbar (das zugehörige Plugin wurde möglicherweise entfernt). Schreiben Sie Aufgabenbeschreibungen, Notizen und Wiki-Texte als Klartext.
   text_redmine_mcp_server_instructions_read_only: Schreibvorgänge sind derzeit blockiert, weil der MCP-Nur-Lese-Modus aktiviert ist.
   label_redmine_mcp_enabled: MCP aktivieren
   label_redmine_mcp_read_only: Nur-Lese-Modus
@@ -52,6 +57,14 @@ de:
   error_mcp_boards_not_enabled: Foren-Modul ist für dieses Projekt nicht aktiviert
   error_mcp_board_not_found: Board nicht gefunden
   error_mcp_board_message_not_found: Forenbeitrag nicht gefunden
+  error_mcp_repository_not_enabled: Repository-Modul ist für dieses Projekt nicht aktiviert
+  error_mcp_repository_not_found: Repository nicht gefunden
+  error_mcp_revision_not_found: Revision nicht gefunden
+  error_mcp_repository_path_not_found: Repository-Pfad nicht gefunden
+  error_mcp_repository_path_not_allowed: Repository-Pfad ist nicht erlaubt
+  error_mcp_invalid_revision: Ungültiger Revisionsparameter
+  error_mcp_repository_file_too_large: Repository-Datei überschreitet die maximal zulässige Größe
+  error_mcp_scm_command_failed: SCM-Befehl fehlgeschlagen
   error_mcp_query_not_found: Gespeicherte Abfrage nicht gefunden
   error_mcp_activity_window_too_long: Das Aktivitätsfenster darf höchstens 90 Tage betragen
   error_mcp_wiki_not_found: Wiki nicht gefunden

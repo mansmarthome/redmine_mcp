@@ -419,7 +419,7 @@ Beschreibungen ähnlicher Tools müssen den Unterschied explizit erläutern.
 Zum Beispiel:
 
 - `redmine_list_project_members` — Mitglieder eines bestimmten Projekts und ihre Rollen;
-- `redmine_admin_list_users` — globale Liste der Installation-Benutzer, erfordert Administratorrechte.
+- `redmine_list_users` ohne `project` — globales Benutzerverzeichnis (nur Admin); mit `project` — Projektmitglieder.
 
 ### 5.5. Anweisungen auf Serverebene
 
@@ -429,7 +429,7 @@ Anweisungen sollten Kontext hinzufügen, der in einzelnen Beschreibungen nicht v
 
 ```text
 Rufe redmine_search_issues vor redmine_get_issue auf, wenn die Vorgangs-ID unbekannt ist.
-Vor dem Erstellen oder Aktualisieren eines Vorgangs rufe redmine_list_project_trackers und
+Vor dem Erstellen oder Aktualisieren eines Vorgangs rufe redmine_list_trackers (mit optionalem Parameter `project`) und
 redmine_list_project_issue_custom_fields auf, wenn ihre IDs noch nicht bekannt sind.
 Private Notizen nur anfordern, wenn der Benutzer sie explizit benötigt und die
 erforderliche Berechtigung hat.
@@ -1463,7 +1463,7 @@ Abgekürztes Schreibtool-Beispiel mit obligatorischem `title` und typisiertem `o
 {
   "name": "redmine_create_issue",
   "title": "Redmine-Vorgang erstellen",
-  "description": "Erstellt einen Vorgang in einem Redmine-Projekt. Rufe redmine_list_project_trackers und redmine_list_project_issue_custom_fields auf, wenn gültige IDs unbekannt sind.",
+  "description": "Erstellt einen Vorgang in einem Redmine-Projekt. Rufe redmine_list_trackers und redmine_list_project_issue_custom_fields auf, wenn gültige IDs unbekannt sind.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1728,6 @@ folgen:
 5. Alias nach vereinbarter Frist entfernen (nicht vor der nächsten Major-Version, sofern kein anderer Zeitraum vereinbart wurde);
 6. `notifications/tools/list_changed` senden, wenn der Server `listChanged` deklariert.
 
-Aktuelle Beispiele (siehe [03-core-tools.md](03-core-tools.md)): `redmine_list_all_users` → `redmine_admin_list_users`; `redmine_list_files` → `redmine_list_project_files`; `redmine_delete_file` → `redmine_delete_attachment`; `redmine_get_server_info` → `redmine_get_mcp_info`. Ein Alias wird in `tools/call` akzeptiert und nicht in `tools/list` veröffentlicht.
-
 ### 15.3. Beschreibungen ändern
 
 Die Beschreibung wirkt sich auf die Auswahl des Modellwerkzeugs aus und gilt als Verhaltensänderung. Bei erheblichen Änderungen in der Beschreibung SOLLTEN die LLM-Auswahlbeispiele überprüft oder eine erneute Auswahlüberprüfung durchgeführt werden.
@@ -1834,7 +1832,7 @@ Wenn das Modell die Absicht mit einem separaten Tool erfüllen kann, ohne die `a
 
 ### 18.3. Benennung
 
-- Der Name MUSS mit `redmine_` beginnen; dann – `plugin_id` und `<verb>_<entity>`: `redmine_redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
+- Der Name MUSS mit `redmine_` beginnen; dann – `plugin_id` und `<verb>_<entity>`: `redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
 - Verben und `manage_*`-Verbot – gemäß §4.2 und §3.1.
 - Kopieren Sie keine Kernwerkzeugnamen und veröffentlichen Sie kein zweites Werkzeug mit derselben Absicht unter einem anderen Namen.
 
@@ -2030,7 +2028,7 @@ Verweisen Sie auf `redmine_create_issue`. Wenn sich das Fehlerformat oder der Um
 {
   "name": "redmine_create_issue",
   "title": "Redmine-Vorgang erstellen",
-  "description": "Erstellt einen Vorgang in einem Redmine-Projekt. Rufe redmine_list_project_trackers und redmine_list_project_issue_custom_fields auf, wenn gültige IDs unbekannt sind. Dieser Vorgang kann Benachrichtigungen erzeugen und ist nicht idempotent, es sei denn idempotency_key wird übergeben.",
+  "description": "Erstellt einen Vorgang in einem Redmine-Projekt. Rufe redmine_list_trackers und redmine_list_project_issue_custom_fields auf, wenn gültige IDs unbekannt sind. Dieser Vorgang kann Benachrichtigungen erzeugen und ist nicht idempotent, es sei denn idempotency_key wird übergeben.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2054,7 @@ Verweisen Sie auf `redmine_create_issue`. Wenn sich das Fehlerformat oder der Um
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker-ID aus redmine_list_project_trackers.",
+        "description": "Tracker-ID aus redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

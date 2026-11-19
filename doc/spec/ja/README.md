@@ -190,7 +190,7 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | ツール | 説明 |
 |------|-------------|
 | `list_projects` | プロジェクト一覧 |
-| `get_project` | プロジェクト詳細 |
+| `get_project` | プロジェクト詳細。オプションでモジュール用の `include_modules` |
 | `list_project_issue_custom_fields` | プロジェクトの課題カスタムフィールド |
 | `summarize_project_status` | N 日間のプロジェクトメトリクス要約（サーバー生成） |
 | `list_project_activities` | プロジェクトアクティビティフィード（イベント。時間記録の activity タイプではない） |
@@ -202,7 +202,6 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `list_project_members` | プロジェクトメンバーとロール |
 | `list_project_member_candidates` | プロジェクトに追加可能なユーザーとグループ |
 | `list_roles` | プロジェクトで管理可能なロール |
-| `get_project_modules` | 有効なプロジェクトモジュール |
 | `add_project_member` | メンバー追加 |
 | `update_project_member` | メンバーロール変更 |
 | `remove_project_member` | メンバー削除 |
@@ -214,10 +213,7 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `get_issue` | 課題詳細（ジャーナル、添付ファイル、カスタムフィールドなど） |
 | `list_issues` | フィルタとページネーション付き課題一覧 |
 | `search_issues` | 課題のテキスト検索 |
-| `run_issue_query` | 保存済み課題クエリの実行 |
 | `get_issue_form_options` | 許可される課題フォームフィールド値（1 回の呼び出し） |
-| `validate_issue_create` | 書き込みなしで課題作成パラメータを検証 |
-| `validate_issue_update` | 書き込みなしで課題更新パラメータを検証 |
 | `create_issue` | 課題作成 |
 | `update_issue` | 課題属性と添付ファイルの更新 |
 | `add_issue_note` | 課題へのコメント追加（オプションで添付ファイル付き） |
@@ -226,11 +222,9 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `list_issue_relations` | 課題関連一覧 |
 | `create_issue_relation` | 課題間の関連作成 |
 | `delete_issue_relation` | 課題関連削除 |
-| `list_subtasks` | サブタスク |
 | `add_issue_watcher` | ウォッチャー追加 |
 | `remove_issue_watcher` | ウォッチャー削除 |
 | `update_issue_note` | ジャーナルエントリ編集 |
-| `set_issue_note_private` | ジャーナルエントリのプライバシー変更 |
 | `get_private_notes` | プライベートコメントのみ |
 | `list_issue_categories` | プロジェクトの課題カテゴリ |
 | `create_issue_category` | カテゴリ作成 |
@@ -252,19 +246,16 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `create_time_entry` | 時間記録作成 |
 | `update_time_entry` | 時間記録更新 |
 | `list_time_entry_activities` | 時間記録の activity タイプ（プロジェクトイベントフィードではない） |
-| `import_time_entries` | 時間記録の一括インポート |
 
 ### 参照データ
 
 | ツール | 説明 |
 |------|-------------|
-| `list_trackers` | すべてのトラッカー |
-| `list_project_trackers` | プロジェクトのトラッカー |
+| `list_trackers` | 課題トラッカー（すべて、または `project` 指定でプロジェクト単位） |
 | `list_issue_statuses` | 課題ステータス |
 | `list_issue_priorities` | 課題優先度 |
-| `admin_list_users` | フィルタ付きユーザー（管理者のみ） |
 | `get_current_user` | 現在のユーザー |
-| `list_queries` | 保存済みクエリ（メタデータ; 実行は `run_issue_query`） |
+| `list_queries` | 保存済みクエリ（メタデータ; 実行は `query_id` 付き `list_issues`） |
 
 ### 検索と Wiki
 
@@ -277,6 +268,17 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `update_wiki_page` | Wiki ページ更新 |
 | `delete_wiki_page` | Wiki ページ削除 |
 | `rename_wiki_page` | Wiki ページ名変更 |
+
+### Repository / SCM
+
+| ツール | 説明 |
+|------|-------------|
+| `list_repositories` | プロジェクトの SCM リポジトリ |
+| `get_repository` | リポジトリ metadata とデフォルトブランチ |
+| `list_revisions` | キャッシュされた changeset（ページ分割） |
+| `get_revision` | オプションのファイル変更付き changeset |
+| `get_repository_file` | ディレクトリ一覧またはファイル内容 |
+| `get_repository_diff` | MCP サイズ制限付き unified diff |
 
 ### フォーラム
 
@@ -293,8 +295,7 @@ host が一致しない場合、MCP エンドポイントは HTTP `403 Forbidden
 | `list_project_files` | プロジェクトファイル |
 | `upload_file` | ファイルアップロード |
 | `delete_attachment` | 添付ファイルを削除 |
-| `get_attachment` | 添付ファイルメタデータと `content_url` |
-| `download_attachment` | 添付ファイル内容（`content_base64`、最大 10 MiB） |
+| `get_attachment` | 添付のメタデータ、`content_url`、任意の `content_base64`（`include_content`、最大 10 MiB） |
 
 ### ユーティリティ
 

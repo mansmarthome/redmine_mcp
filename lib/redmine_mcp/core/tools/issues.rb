@@ -42,15 +42,21 @@ module RedmineMcp
         WATCHER_INPUT_SCHEMA = {
           properties: {
             issue_id: Helpers::ISSUE_ID_SCHEMA,
-            principal_id: WATCHER_PRINCIPAL_ID_SCHEMA,
-            user_id: WATCHER_PRINCIPAL_ID_SCHEMA.merge(
-              description: 'Deprecated alias of principal_id. Same meaning: user or group ID. Do not send together with principal_id.'
-            )
+            principal_id: WATCHER_PRINCIPAL_ID_SCHEMA
           },
-          required: ['issue_id'],
-          oneOf: [
-            {required: ['principal_id'], not: {required: ['user_id']}},
-            {required: ['user_id'], not: {required: ['principal_id']}},
+          required: %w[issue_id principal_id]
+        }.freeze
+
+        UPDATE_ISSUE_NOTE_INPUT_SCHEMA = {
+          properties: {
+            journal_id: {type: 'integer', minimum: 1, description: 'Journal entry ID from redmine_get_issue with include_journals.'},
+            notes: {type: 'string', description: 'New journal note text. Empty string clears the existing note.'},
+            private_notes: {type: 'boolean', description: 'Whether the note is private.'}
+          },
+          required: ['journal_id'],
+          anyOf: [
+            {required: ['notes']},
+            {required: ['private_notes']},
           ]
         }.freeze
 
@@ -104,7 +110,7 @@ module RedmineMcp
           tracker_id: {
             type: 'integer',
             minimum: 1,
-            description: 'Tracker ID returned by redmine_list_trackers or redmine_list_project_trackers.',
+            description: 'Tracker ID returned by redmine_list_trackers (pass project when listing project-specific trackers).',
             examples: [1, 2]
           },
           status_id: {
@@ -196,13 +202,26 @@ module RedmineMcp
           estimated_hours done_ratio is_private custom_fields
         ].freeze
 
-        MCP_FORM_ATTRIBUTE_NAMES = (ISSUE_MUTABLE_KEYS.map(&:to_s) - %w[assignee_ref status_name]).freeze
+        MCP_FORM_ATTRIBUTE_NAMES = (
+          ISSUE_MUTABLE_KEYS.map(&:to_s) - %w[assignee_ref status_name] + %w[project]
+        ).freeze
+
+        ISSUE_UPDATE_PROJECT_SCHEMA = PROJECT_SCHEMA.merge(
+          description: 'Target project to move the issue to (numeric ID as string or project identifier). ' \
+                       'Must be among Issue.allowed_target_projects for the current user. ' \
+                       'Call redmine_list_projects when the value is unknown.'
+        ).freeze
+
+        ISSUE_UPDATE_WRITE_PROPERTIES = ISSUE_ATTRIBUTE_PROPERTIES.merge(
+          project: ISSUE_UPDATE_PROJECT_SCHEMA
+        ).freeze
 
         ISSUE_VALUE_COMPARE_ATTRIBUTES = {
+          project_id: :project_id,
           tracker_id: :tracker_id,
           status_id: :status_id,
           is_private: :is_private,
-          parent_issue_id: :parent_id,
+          parent_issue_id: :parent_issue_id,
           assigned_to_id: :assigned_to_id
         }.freeze
 
@@ -212,7 +231,7 @@ module RedmineMcp
 
         LIST_ISSUE_FILTER_FIELDS = %w[
           status_id tracker_id assigned_to_id priority_id fixed_version_id category_id subject
-          due_date start_date created_on updated_on estimated_hours done_ratio author_id watcher_id
+          due_date start_date created_on updated_on estimated_hours done_ratio author_id watcher_id parent_id
         ].freeze
 
         FILTER_ITEM_SCHEMA = {
@@ -237,16 +256,15 @@ module RedmineMcp
           required: %w[field operator values]
         }.freeze
 
+        QUERY_ID_EXCLUSIVE_KEYS = %i[status_id tracker_id assigned_to_id assignee_ref priority_id fixed_version_id filters sort].freeze
+
       module_function
 
         def register!
           register_get_issue
           register_list_issues
           register_search_issues
-          register_run_issue_query
           register_get_issue_form_options
-          register_validate_issue_create
-          register_validate_issue_update
           register_create_issue
           register_update_issue
           register_add_issue_note
@@ -255,11 +273,9 @@ module RedmineMcp
           register_list_issue_relations
           register_create_issue_relation
           register_delete_issue_relation
-          register_list_subtasks
           register_add_issue_watcher
           register_remove_issue_watcher
           register_update_issue_note
-          register_set_issue_note_private
           register_get_private_notes
           register_list_issue_categories
           register_create_issue_category
@@ -329,50 +345,63 @@ module RedmineMcp
         end
 
         def register_list_issues
+          filter_properties = {
+            project: PROJECT_SCHEMA,
+            status_id: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Issue status ID returned by redmine_list_issue_statuses.',
+              examples: [1, 2]
+            },
+            tracker_id: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Tracker ID returned by redmine_list_trackers.',
+              examples: [1, 2]
+            },
+            assigned_to_id: Helpers::USER_ID_SCHEMA,
+            assignee_ref: Helpers::USER_REF_SCHEMA,
+            priority_id: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Issue priority ID returned by redmine_list_issue_priorities.',
+              examples: [3, 4]
+            },
+            fixed_version_id: {
+              type: 'integer',
+              minimum: 1,
+              description: 'Target version ID returned by redmine_list_versions.'
+            },
+            filters: {
+              type: 'array',
+              maxItems: 50,
+              items: FILTER_ITEM_SCHEMA,
+              description: 'Advanced Redmine query filters combined with flat filters via AND.'
+            },
+            sort: {type: 'string', description: 'Sort order, e.g. updated_on:desc', examples: ['updated_on:desc']},
+            fields: ISSUE_FIELDS_SCHEMA
+          }.merge(Helpers::PAGINATION_INPUT)
+          query_id_properties = {
+            query_id: {type: 'integer', minimum: 1, description: 'Saved query ID from redmine_list_queries.'},
+            project: PROJECT_SCHEMA,
+            fields: ISSUE_FIELDS_SCHEMA
+          }.merge(Helpers::PAGINATION_INPUT)
+
           Registry.instance.register_tool(
             plugin_id: PLUGIN_ID,
             name: 'list_issues',
             title: 'List issues',
-            description: "Returns a paginated list of issues matching structured filters.\n\nDefault: summary fields only; limit 25, max 100.\nUse redmine_get_issue for full detail.\nUse " \
-                         "redmine_search_issues for free-text lookup.\nOptional filters array uses Redmine query operators for advanced filtering.\nCall redmine_get_issue_form_options or " \
-                         'redmine_list_projects / redmine_list_issue_statuses / redmine_list_trackers when filter IDs are unknown.',
+            description: "Returns a paginated list of issues matching structured filters or a saved query.\n\n" \
+                         "Default: summary fields only; limit 25, max 100.\nUse redmine_get_issue for full detail.\n" \
+                         "Use redmine_search_issues for free-text lookup.\nOptional query_id runs a saved query from redmine_list_queries (no filter overrides).\n" \
+                         'Optional filters array uses Redmine query operators for advanced filtering ' \
+                         "(including parent_id to list direct subtasks).\nCall " \
+                         'redmine_get_issue_form_options or redmine_list_projects / redmine_list_issue_statuses / redmine_list_trackers when filter IDs are unknown.',
             input_schema: {
-              properties: {
-                project: PROJECT_SCHEMA,
-                status_id: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Issue status ID returned by redmine_list_issue_statuses.',
-                  examples: [1, 2]
-                },
-                tracker_id: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Tracker ID returned by redmine_list_trackers.',
-                  examples: [1, 2]
-                },
-                assigned_to_id: Helpers::USER_ID_SCHEMA,
-                assignee_ref: Helpers::USER_REF_SCHEMA,
-                priority_id: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Issue priority ID returned by redmine_list_issue_priorities.',
-                  examples: [3, 4]
-                },
-                fixed_version_id: {
-                  type: 'integer',
-                  minimum: 1,
-                  description: 'Target version ID returned by redmine_list_versions.'
-                },
-                filters: {
-                  type: 'array',
-                  maxItems: 50,
-                  items: FILTER_ITEM_SCHEMA,
-                  description: 'Advanced Redmine query filters combined with flat filters via AND.'
-                },
-                sort: {type: 'string', description: 'Sort order, e.g. updated_on:desc', examples: ['updated_on:desc']},
-                fields: ISSUE_FIELDS_SCHEMA
-              }.merge(Helpers::PAGINATION_INPUT)
+              oneOf: [
+                {properties: query_id_properties, required: ['query_id']},
+                {properties: filter_properties, not: {required: ['query_id']}},
+              ]
             },
             output_schema: RedmineMcp::Core::OutputSchemas::LIST_ISSUES,
             permission: :view_issues,
@@ -407,28 +436,6 @@ module RedmineMcp
             permission: :view_issues,
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
             handler: method(:search_issues)
-          )
-        end
-
-        def register_run_issue_query
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'run_issue_query',
-            title: 'Run saved issue query',
-            description: "Executes one saved issue query by query_id and returns matching issues.\n\nDefault: summary fields; limit 25, max 100.\nCall redmine_list_queries to discover query_id.\n" \
-                         'Optional project narrows a global query to one visible project. Does not modify Redmine.',
-            input_schema: {
-              properties: {
-                query_id: {type: 'integer', minimum: 1, description: 'Saved query ID from redmine_list_queries.'},
-                project: PROJECT_SCHEMA,
-                fields: ISSUE_FIELDS_SCHEMA
-              }.merge(Helpers::PAGINATION_INPUT),
-              required: ['query_id']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::LIST_ISSUES,
-            permission: :view_issues,
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:run_issue_query)
           )
         end
 
@@ -467,61 +474,13 @@ module RedmineMcp
           )
         end
 
-        def register_validate_issue_create
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'validate_issue_create',
-            title: 'Validate issue create',
-            description: 'Validate parameters for creating an issue without saving. Same fields as redmine_create_issue ' \
-                         'except idempotency_key. Returns valid/errors; rejected_fields lists explicit values Redmine would ' \
-                         'not apply. Available in MCP read-only mode. Use before redmine_create_issue when field values may ' \
-                         'violate workflow or project rules.',
-            input_schema: {
-              properties: {
-                project: PROJECT_SCHEMA,
-                subject: ISSUE_SUBJECT_SCHEMA,
-                description: ISSUE_DESCRIPTION_SCHEMA
-              }.merge(ISSUE_ATTRIBUTE_PROPERTIES),
-              required: %w[project subject]
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::VALIDATION,
-            permission: :add_issues,
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:validate_issue_create)
-          )
-        end
-
-        def register_validate_issue_update
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'validate_issue_update',
-            title: 'Validate issue update',
-            description: 'Validate issue attribute changes without saving and without creating a journal entry. Accepts ' \
-                         'the same attribute fields as redmine_update_issue, but not uploads. Returns valid/errors; ' \
-                         'rejected_fields lists explicit values Redmine would not apply. Available in MCP read-only mode. ' \
-                         'Use before redmine_update_issue when attribute values may violate workflow or assignment rules.',
-            input_schema: {
-              properties: {
-                issue_id: {type: 'integer', minimum: 1, description: 'Numeric ID of the issue to validate.', examples: [1]},
-                subject: ISSUE_SUBJECT_SCHEMA,
-                description: ISSUE_DESCRIPTION_SCHEMA
-              }.merge(ISSUE_ATTRIBUTE_PROPERTIES),
-              required: ['issue_id']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::VALIDATION,
-            permission: ->(user, args, _project) { update_issue_allowed?(user, args) },
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:validate_issue_update)
-          )
-        end
-
         def register_create_issue
           Registry.instance.register_tool(
             plugin_id: PLUGIN_ID,
             name: 'create_issue',
             title: 'Create issue',
             description: "Creates one issue in a project.\n\nRequires project and subject.\nCall redmine_get_issue_form_options when tracker, status, assignee, or custom field IDs are unknown.\n" \
-                         'Optional idempotency_key prevents duplicate creates on retry. Use redmine_validate_issue_create for a dry-run without saving.',
+                         'Optional idempotency_key prevents duplicate creates on retry.',
             input_schema: {
               properties: {
                 project: PROJECT_SCHEMA,
@@ -543,12 +502,14 @@ module RedmineMcp
             plugin_id: PLUGIN_ID,
             name: 'update_issue',
             title: 'Update issue',
-            description: "Updates one existing issue by issue_id.\n\nSupply only fields that should change. Does not add comments or replace watchers.\n" \
+            description: "Updates one existing issue by issue_id.\n\nSupply only fields that should change. " \
+                         'Optional project moves the issue to another project using the same rules as the Redmine issue form. ' \
+                         "Does not add comments or replace watchers.\n" \
                          "Use redmine_add_issue_note for comments and redmine_add_issue_watcher / redmine_remove_issue_watcher for watchers.\n" \
                          'Optional expected_updated_at rejects stale updates with CONFLICT. ' \
                          'uploads-only calls are allowed when the user can add attachments even without editing attributes. ' \
                          'Optional idempotency_key prevents duplicate attachments on retry. ' \
-                         'Call redmine_get_issue_form_options when allowed values are unknown. Use redmine_validate_issue_update for a dry-run without saving. Use redmine_copy_issue to create a ' \
+                         'Call redmine_get_issue_form_options when allowed values are unknown. Use redmine_copy_issue to create a ' \
                          'new issue from an existing one.',
             input_schema: {
               properties: {
@@ -558,7 +519,7 @@ module RedmineMcp
                 description: ISSUE_DESCRIPTION_SCHEMA,
                 uploads: Helpers::ISSUE_UPLOADS_SCHEMA,
                 idempotency_key: Helpers::IDEMPOTENCY_KEY_SCHEMA
-              }.merge(ISSUE_ATTRIBUTE_PROPERTIES),
+              }.merge(ISSUE_UPDATE_WRITE_PROPERTIES),
               required: ['issue_id']
             },
             output_schema: RedmineMcp::Core::OutputSchemas::ISSUE_UPDATED,
@@ -731,36 +692,13 @@ module RedmineMcp
           )
         end
 
-        def register_list_subtasks
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'list_subtasks',
-            title: 'List subtasks',
-            description: 'Return a paginated list of direct child issues for one parent issue_id. Each item uses the same summary fields as redmine_list_issues by default. Use for hierarchy ' \
-                         'navigation ' \
-                         'when the parent issue is known. For a brief embedded child list inside full issue detail, use redmine_get_issue with include_children. For text search across issues, use ' \
-                         'redmine_search_issues. Default limit 25, maximum 100. Does not modify Redmine.',
-            input_schema: {
-              properties: {
-                issue_id: {type: 'integer', minimum: 1, description: 'ID of the parent issue'}
-              }.merge(Helpers::PAGINATION_INPUT),
-              required: ['issue_id']
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::LIST_ISSUES,
-            permission: :view_issues,
-            annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            handler: method(:list_subtasks)
-          )
-        end
-
         def register_add_issue_watcher
           Registry.instance.register_tool(
             plugin_id: PLUGIN_ID,
             name: 'add_issue_watcher',
             title: 'Add issue watcher',
             description: 'Add one principal (user or group) as a watcher on an issue. Requires issue_id and principal_id. ' \
-                         'user_id is a deprecated alias of principal_id. Returns the issue_id, principal_id, and user_id. ' \
-                         'Requires permission to add watchers on the issue. ' \
+                         'Returns the issue_id and principal_id. Requires permission to add watchers on the issue. ' \
                          'Blocked when MCP read-only mode is enabled. Call redmine_list_users or redmine_list_groups ' \
                          'when the watcher ID is unknown.',
             input_schema: WATCHER_INPUT_SCHEMA,
@@ -777,8 +715,7 @@ module RedmineMcp
             name: 'remove_issue_watcher',
             title: 'Remove issue watcher',
             description: 'Remove one principal (user or group) from the watchers of an issue. Requires issue_id and ' \
-                         'principal_id. user_id is a deprecated alias of principal_id. Returns the issue_id, principal_id, ' \
-                         'and user_id. Requires permission to delete watchers on ' \
+                         'principal_id. Returns the issue_id and principal_id. Requires permission to delete watchers on ' \
                          'the issue. Blocked when MCP read-only mode is enabled. To inspect current watchers, use ' \
                          'redmine_get_issue with include_watchers.',
             input_schema: WATCHER_INPUT_SCHEMA,
@@ -794,46 +731,15 @@ module RedmineMcp
             plugin_id: PLUGIN_ID,
             name: 'update_issue_note',
             title: 'Update issue note',
-            description: 'Edit the text of one visible issue journal entry by journal_id. Requires notes (empty string ' \
-                         'clears the existing text); optional private_notes changes visibility and requires ' \
-                         'set_notes_private. Returns journal_id, notes, and private_notes. The journal must be visible ' \
-                         'and editable by the current user. Blocked when MCP read-only mode is enabled. To add a new ' \
-                         'comment instead of editing history, use redmine_add_issue_note.',
-            input_schema: {
-              properties: {
-                journal_id: {type: 'integer', minimum: 1, description: 'Journal entry ID from redmine_get_issue with include_journals.'},
-                notes: {type: 'string', description: 'New journal note text. Empty string clears the existing note.'},
-                private_notes: {type: 'boolean', description: 'Whether the note is private.'}
-              },
-              required: %w[journal_id notes]
-            },
+            description: 'Change the text and/or privacy of one visible issue journal entry by journal_id. Supply at least one of notes or private_notes. notes empty string clears the text. ' \
+                         'private_notes changes visibility and requires set_notes_private. Returns journal_id, notes, and ' \
+                         'private_notes. The journal must be visible and editable by the current user. Blocked when MCP read-only mode is enabled. To add a new comment instead of editing history, ' \
+                         'use redmine_add_issue_note.',
+            input_schema: UPDATE_ISSUE_NOTE_INPUT_SCHEMA,
             output_schema: RedmineMcp::Core::OutputSchemas::JOURNAL,
-            permission: ->(user, args, _project) { issue_note_editable?(user, args[:journal_id], privacy_change: args.key?(:private_notes)) },
+            permission: ->(user, args, _project) { issue_note_update_allowed?(user, args) },
             annotations: Helpers::UPDATE_ANNOTATIONS,
             handler: method(:update_issue_note)
-          )
-        end
-
-        def register_set_issue_note_private
-          Registry.instance.register_tool(
-            plugin_id: PLUGIN_ID,
-            name: 'set_issue_note_private',
-            title: 'Set issue note privacy',
-            description: 'Set whether one visible issue journal entry is private by journal_id. Requires is_private ' \
-                         'and set_notes_private. Returns journal_id and private_notes flag. The journal must be ' \
-                         'visible and editable by the current user. Blocked when MCP read-only mode is enabled. To ' \
-                         'create a new private comment, use redmine_add_issue_note with notes and private_notes.',
-            input_schema: {
-              properties: {
-                journal_id: {type: 'integer', minimum: 1, description: 'Journal entry ID from redmine_get_issue with include_journals.'},
-                is_private: {type: 'boolean', description: 'true marks the note private; false makes it public.'}
-              },
-              required: %w[journal_id is_private]
-            },
-            output_schema: RedmineMcp::Core::OutputSchemas::NOTE_PRIVACY,
-            permission: ->(user, args, _project) { issue_note_editable?(user, args[:journal_id], privacy_change: true) },
-            annotations: Helpers::UPDATE_ANNOTATIONS,
-            handler: method(:set_issue_note_private)
           )
         end
 
@@ -1024,9 +930,19 @@ module RedmineMcp
         end
 
         def list_issues(args, context)
+          if args[:query_id].present?
+            conflict = list_issues_query_id_conflict?(args)
+            return conflict if conflict
+
+            return run_issue_query(args, context)
+          end
+
           user = context[:user]
           limit = Helpers.clamp_limit(args[:limit])
           offset = Helpers.clamp_offset(args[:offset])
+          parent_err = verify_parent_filter_access(user, args)
+          return parent_err if parent_err
+
           scope, err = build_issue_scope(user, args)
           return err if err
 
@@ -1057,6 +973,12 @@ module RedmineMcp
           issues = query.issues(limit: limit, offset: offset)
           serialized = issues.map { |issue| serialize_issue_list_item(issue, args[:fields]) }
           Helpers.paginated_list(serialized, total_count: total, limit: limit, offset: offset)
+        end
+
+        def list_issues_query_id_conflict?(args)
+          return Helpers.error_result(:error_mcp_invalid_parameters) if QUERY_ID_EXCLUSIVE_KEYS.any? { |key| args[key].present? }
+
+          false
         end
 
         def get_issue_form_options(args, context)
@@ -1123,8 +1045,9 @@ module RedmineMcp
         end
 
         def mcp_form_field_names(names)
-          names.map(&:to_s).select do |name|
-            MCP_FORM_ATTRIBUTE_NAMES.include?(name) || name.match?(/\A\d+\z/)
+          names.map(&:to_s).filter_map do |name|
+            mapped = name == 'project_id' ? 'project' : name
+            mapped if MCP_FORM_ATTRIBUTE_NAMES.include?(mapped) || mapped.match?(/\A\d+\z/)
           end
         end
 
@@ -1170,35 +1093,6 @@ module RedmineMcp
           else
             {label: entry.to_s, value: entry.to_s}
           end
-        end
-
-        def validate_issue_create(args, context)
-          user = context[:user]
-          project = Helpers.find_project(user, args[:project])
-          return Helpers.error_result(:error_mcp_project_not_found) unless project
-
-          fields = issue_write_fields_from_args(args, user: user, include_subject: true)
-          issue = Issue.new(project: project, author: user)
-          apply_create_issue_start_date_default(issue, fields, user)
-          rejected_fields = apply_issue_fields(issue, fields, user: user)
-          issue.valid?
-          append_rejected_field_errors(issue, rejected_fields)
-          validation_result(issue, rejected_fields: rejected_fields)
-        end
-
-        def validate_issue_update(args, context)
-          user = context[:user]
-          issue, err = find_visible_issue(user, args[:issue_id])
-          return err if err
-
-          fields = issue_write_fields_from_args(args, user: user, include_subject: true)
-          return Helpers.error_result(:error_mcp_invalid_parameters) if fields.empty?
-
-          issue.init_journal(user)
-          rejected_fields = apply_issue_fields(issue, fields, user: user)
-          issue.valid?
-          append_rejected_field_errors(issue, rejected_fields)
-          validation_result(issue, rejected_fields: rejected_fields)
         end
 
         def search_issues(args, context)
@@ -1277,7 +1171,8 @@ module RedmineMcp
           conflict = Helpers.conflict_if_stale(issue, args[:expected_updated_at])
           return conflict if conflict
 
-          fields = issue_write_fields_from_args(args, user: user, include_subject: true)
+          fields, err = issue_update_fields_from_args(args, user: user, include_subject: true)
+          return err if err
 
           Helpers.with_issue_upload_entries(args[:uploads]) do |upload_entries, upload_err|
             return upload_err if upload_err
@@ -1466,22 +1361,6 @@ module RedmineMcp
           {deleted_relation_id: deleted_id}
         end
 
-        def list_subtasks(args, context)
-          user = context[:user]
-          issue, err = find_visible_issue(user, args[:issue_id])
-          return err if err
-
-          limit = Helpers.clamp_limit(args[:limit])
-          offset = Helpers.clamp_offset(args[:offset])
-          Helpers.paginate_collection(
-            issue.children.visible(user).reorder(:id),
-            limit: limit,
-            offset: offset
-          ) do |child|
-            serialize_issue_list_item(child, nil)
-          end
-        end
-
         def add_issue_watcher(args, context)
           blocked = ReadOnly.guard_write!
           return blocked if blocked
@@ -1566,32 +1445,20 @@ module RedmineMcp
           return blocked if blocked
 
           user = context[:user]
-          journal, err = find_editable_journal(user, args[:journal_id])
+          normalized, param_err = normalize_issue_note_update_args(args)
+          return param_err if param_err
+
+          journal, err = find_editable_journal(user, normalized[:journal_id])
           return err if err
 
-          attributes = {notes: args[:notes], updated_by: user}
-          attributes[:private_notes] = Helpers.truthy?(args[:private_notes]) if args.key?(:private_notes)
+          attributes = {updated_by: user}
+          attributes[:notes] = normalized[:notes] if normalized.key?(:notes)
+          attributes[:private_notes] = Helpers.truthy?(normalized[:private_notes]) if normalized.key?(:private_notes)
           apply_journal_attributes(journal, attributes, user)
-          return Helpers.error_result(:error_mcp_permission_denied) if args.key?(:private_notes) && journal.private_notes? != Helpers.truthy?(args[:private_notes])
+          return Helpers.error_result(:error_mcp_permission_denied) if normalized.key?(:private_notes) && journal.private_notes? != Helpers.truthy?(normalized[:private_notes])
           return Helpers.model_errors(journal) unless journal.save
 
           {journal_id: journal.id, notes: journal.notes, private_notes: journal.private_notes?}
-        end
-
-        def set_issue_note_private(args, context)
-          blocked = ReadOnly.guard_write!
-          return blocked if blocked
-
-          user = context[:user]
-          journal, err = find_editable_journal(user, args[:journal_id])
-          return err if err
-
-          requested = Helpers.truthy?(args[:is_private])
-          apply_journal_attributes(journal, {private_notes: requested, updated_by: user}, user)
-          return Helpers.error_result(:error_mcp_permission_denied) unless journal.private_notes? == requested
-          return Helpers.model_errors(journal) unless journal.save
-
-          {journal_id: journal.id, private_notes: journal.private_notes?}
         end
 
         def get_private_notes(args, context)
@@ -1759,6 +1626,13 @@ module RedmineMcp
             allowed_ops = Query.operators_by_filter_type[filter_type] || []
             return [nil, Helpers.error_result(:error_mcp_invalid_parameters)] unless allowed_ops.include?(operator)
 
+            if field == 'parent_id' && %w[= ~].include?(operator)
+              parent_ids, ids_err = parent_filter_issue_ids(values)
+              return [nil, ids_err] if ids_err
+
+              values = [parent_ids.join(',')]
+            end
+
             query.add_filter(field, operator, values)
             return [nil, Helpers.error_result(:error_mcp_invalid_parameters)] unless query.has_filter?(field)
           end
@@ -1778,17 +1652,51 @@ module RedmineMcp
           false
         end
 
-        def validation_result(issue, rejected_fields: [])
-          if issue.errors.empty?
-            {valid: true, errors: []}
-          else
-            result = {valid: false, errors: issue.errors.full_messages}
-            details = issue_validation_error(issue, rejected_fields: rejected_fields)
-            result[:missing_required_fields] = details.dig(:details, :missing_required_fields) if details.dig(:details, :missing_required_fields)
-            result[:hint] = details[:hint] if details[:hint]
-            result[:rejected_fields] = rejected_fields if rejected_fields.any?
-            result
+        def verify_parent_filter_access(user, args)
+          Array(args[:filters]).each do |raw|
+            filter = raw.is_a?(Hash) ? raw.deep_symbolize_keys : {}
+            next unless filter[:field].to_s == 'parent_id'
+            next unless filter[:operator].to_s == '='
+
+            parent_ids, err = parent_filter_issue_ids(filter[:values])
+            return err if err
+            next if parent_ids.empty?
+
+            parent_ids.each do |issue_id|
+              _issue, find_err = find_visible_issue(user, issue_id)
+              return find_err if find_err
+            end
           end
+          nil
+        end
+
+        def parent_filter_issue_ids(values)
+          ids = []
+          Array(values).each do |raw|
+            raw.to_s.split(',').each do |segment|
+              segment = segment.strip
+              next if segment.blank?
+
+              return [[], Helpers.error_result(:error_mcp_invalid_parameters)] unless segment.match?(/\A\d+\z/)
+
+              issue_id = segment.to_i
+              return [[], Helpers.error_result(:error_mcp_invalid_parameters)] if issue_id < 1
+
+              ids << issue_id
+            end
+          end
+          [ids.uniq, nil]
+        end
+
+        def normalize_issue_note_update_args(args)
+          args = args.deep_symbolize_keys
+          normalized = {journal_id: args[:journal_id]}
+          normalized[:notes] = args[:notes] if args.key?(:notes)
+          normalized[:private_notes] = args[:private_notes] if args.key?(:private_notes)
+
+          return [nil, Helpers.error_result(:error_mcp_invalid_parameters)] unless normalized.key?(:notes) || normalized.key?(:private_notes)
+
+          [normalized, nil]
         end
 
         def apply_sort(scope, sort)
@@ -1813,6 +1721,18 @@ module RedmineMcp
           fields[:assigned_to_id] = Helpers.resolve_user_ref(user, args[:assignee_ref]) if args.key?(:assignee_ref) && user
           fields.delete(:assignee_ref)
           fields
+        end
+
+        def issue_update_fields_from_args(args, user:, include_subject: false)
+          fields = issue_write_fields_from_args(args, user: user, include_subject: include_subject)
+          fields = {} unless fields.is_a?(Hash)
+          return [fields, nil] unless args.key?(:project)
+
+          target = Helpers.find_project(user, args[:project])
+          return [fields, Helpers.error_result(:error_mcp_project_not_found)] unless target
+
+          fields[:project_id] = target.id
+          [fields, nil]
         end
 
         def apply_create_issue_start_date_default(issue, fields, user)
@@ -2196,18 +2116,14 @@ module RedmineMcp
         end
 
         def watcher_principal_id_from_args(args)
-          principal_id = args[:principal_id]
-          user_id = args[:user_id]
-          return [nil, Helpers.error_result(:error_mcp_invalid_parameters)] if principal_id.present? && user_id.present? && principal_id.to_i != user_id.to_i
-
-          id = principal_id.presence || user_id
+          id = args[:principal_id]
           return [nil, Helpers.error_result(:error_mcp_invalid_parameters)] if id.blank?
 
           [id, nil]
         end
 
         def serialize_watcher(issue, principal)
-          {issue_id: issue.id, principal_id: principal.id, user_id: principal.id}
+          {issue_id: issue.id, principal_id: principal.id}
         end
 
         def resolve_addable_watcher(issue, user_id)
@@ -2319,8 +2235,8 @@ module RedmineMcp
           issue = visible_issue(user, args[:issue_id])
           return false unless issue
 
-          fields = issue_write_fields_from_args(args, user: user, include_subject: true)
-          return issue.attachments_addable?(user) if fields.empty? && Array(args[:uploads]).any?
+          fields, = issue_update_fields_from_args(args, user: user, include_subject: true)
+          return issue.attachments_addable?(user) if fields.empty? && !args.key?(:project) && Array(args[:uploads]).any?
 
           issue.attributes_editable?(user)
         end
@@ -2347,6 +2263,12 @@ module RedmineMcp
           return true unless privacy_change
 
           user.allowed_to?(:set_notes_private, journal.project)
+        end
+
+        def issue_note_update_allowed?(user, args)
+          args = args.deep_symbolize_keys
+          privacy_change = args.key?(:private_notes)
+          issue_note_editable?(user, args[:journal_id], privacy_change: privacy_change)
         end
 
         def create_issue_category_allowed?(user, args, project)

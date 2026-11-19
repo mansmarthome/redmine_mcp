@@ -419,7 +419,7 @@ Les descriptions d'outils similaires doivent expliquer explicitement la différe
 Par exemple:
 
 - `redmine_list_project_members` — membres d'un projet spécifique et leurs rôles ;
-- `redmine_admin_list_users` — liste globale des utilisateurs d'installation, nécessite des droits d'administrateur.
+- `redmine_list_users` sans `project` — annuaire global des utilisateurs (admin uniquement) ; avec `project` — membres du projet.
 
 ### 5.5. Instructions au niveau du serveur
 
@@ -429,7 +429,7 @@ Les instructions doivent ajouter un contexte non présent dans les descriptions 
 
 ```text
 Utilisez redmine_search_issues avant redmine_get_issue lorsque l'ID du ticket est inconnu.
-Avant de créer ou mettre à jour un ticket, appelez redmine_list_project_trackers et
+Avant de créer ou mettre à jour un ticket, appelez redmine_list_trackers (avec `project` optionnel) et
 redmine_list_project_issue_custom_fields lorsque leurs IDs ne sont pas déjà connus.
 Les notes privées ne doivent être demandées que lorsque l'utilisateur en a explicitement besoin et a
 la permission requise.
@@ -1463,7 +1463,7 @@ Exemple d'outil d'écriture abrégé avec `title` obligatoire et `outputSchema` 
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -1728,8 +1728,6 @@ suivre:
 5. supprimer l'alias après la période convenue (pas avant la prochaine version majeure, sauf période convenue séparément) ;
 6. envoyer `notifications/tools/list_changed` si le serveur déclare `listChanged`.
 
-Exemples actuels (voir [03-core-tools.md](03-core-tools.md)) : `redmine_list_all_users` → `redmine_admin_list_users` ; `redmine_list_files` → `redmine_list_project_files` ; `redmine_delete_file` → `redmine_delete_attachment` ; `redmine_get_server_info` → `redmine_get_mcp_info`. Un alias est accepté dans `tools/call` et n'est pas publié dans `tools/list`.
-
 ### 15.3. Modification des descriptions
 
 La description affecte la sélection des outils de modèle et est considérée comme un changement de comportement. En cas de changement substantiel dans la description, DEVRAIT examiner les exemples de sélection LLM ou procéder à un nouvel examen de la sélection.
@@ -1834,7 +1832,7 @@ Si le modèle peut réaliser l'intention avec un outil séparé sans deviner `ac
 
 ### 18.3. Appellation
 
-- Le nom DOIT commencer par `redmine_` ; puis — `plugin_id` et `<verb>_<entity>` : `redmine_redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
+- Le nom DOIT commencer par `redmine_` ; puis — `plugin_id` et `<verb>_<entity>` : `redmine_advanced_checklists_<verb>_<entity>`, `redmine_advanced_search_<verb>_<entity>`.
 - Verbes et interdiction `manage_*` — selon §4.2 et §3.1.
 - Ne copiez pas les noms des outils principaux et ne publiez pas de deuxième outil avec la même intention sous un nom différent.
 
@@ -2030,7 +2028,7 @@ Référencez `redmine_create_issue`. Lorsque le format ou l'enveloppe d'une erre
 {
   "name": "redmine_create_issue",
   "title": "Create Redmine issue",
-  "description": "Create one issue in a Redmine project. Use redmine_list_project_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
+  "description": "Create one issue in a Redmine project. Use redmine_list_trackers and redmine_list_project_issue_custom_fields when valid IDs are unknown. This operation may create notifications and is not idempotent unless idempotency_key is supplied.",
   "inputSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -2056,7 +2054,7 @@ Référencez `redmine_create_issue`. Lorsque le format ou l'enveloppe d'une erre
       "tracker_id": {
         "type": "integer",
         "minimum": 1,
-        "description": "Tracker ID returned by redmine_list_project_trackers.",
+        "description": "Tracker ID returned by redmine_list_trackers.",
         "examples": [1, 2]
       },
       "priority_id": {

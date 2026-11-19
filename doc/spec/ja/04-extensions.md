@@ -37,7 +37,7 @@ MCP サーバーの重複や Redmine MCP コードの変更なしに、Redmine �
 
 - 拡張プラグインは任意の数のツールを登録できる。
 - 各ツールには、名前、説明、入力スキーマ、出力スキーマ、権限要件、ハンドラーがある。
-- 完全なツール名: `redmine_<plugin_id>_<name>`（例: `redmine_redmine_advanced_checklists_get_issue_checklists`、`redmine_advanced_search_semantic_search_issues`）。
+- 完全なツール名: `redmine_<plugin_id>_<name>`（例: `redmine_advanced_checklists_get_checklists`、`redmine_advanced_search_semantic_search_issues`）。
 - ツール名の重複は禁止される。
 - ツールは、対応する権限を持つユーザーの MCP にのみ表示される。
 - 課題スコープの拡張ツールは、有効な Redmine プロジェクトモジュールを要求できる（モジュール識別子はプラグイン id と一致する必要はない）。`tools/list` では、そのモジュールを持つ少なくとも 1 つの可視プロジェクトで宣言された権限をユーザーが持つ場合にツールが表示される。モジュール要件がない場合、少なくとも 1 つの可視プロジェクトでの権限で十分である。呼び出し時は特定の課題を再チェックする: 可視性、そのプロジェクトでの権限、有効なモジュール; そうでなければ応答は "not found" である。

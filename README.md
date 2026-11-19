@@ -166,7 +166,7 @@ The server provides tools for projects, issues, users, time tracking, Wiki, foru
 ### Operation reliability
 
 - `expected_updated_at` — on sensitive update/delete operations.
-- `idempotency_key` — on `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`.
+- `idempotency_key` — on `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`.
 
 ### Limits
 
@@ -190,7 +190,7 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | Tool | Description |
 |------|-------------|
 | `list_projects` | List projects |
-| `get_project` | Project details |
+| `get_project` | Project details; optional `include_modules` for enabled modules |
 | `list_project_issue_custom_fields` | Project issue custom fields |
 | `summarize_project_status` | Server-built project metrics summary for N days |
 | `list_project_activities` | Project activity feed (events, not time-entry types) |
@@ -202,7 +202,6 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | `list_project_members` | Project members and their roles |
 | `list_project_member_candidates` | Users and groups that can be added to the project |
 | `list_roles` | Roles that can be managed in the project |
-| `get_project_modules` | Enabled project modules |
 | `add_project_member` | Add a member |
 | `update_project_member` | Change member roles |
 | `remove_project_member` | Remove a member |
@@ -212,12 +211,9 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | Tool | Description |
 |------|-------------|
 | `get_issue` | Issue details (journal, attachments, custom fields, etc.) |
-| `list_issues` | List issues with filters and pagination |
+| `list_issues` | List issues with filters, saved `query_id`, and pagination |
 | `search_issues` | Text search over issues |
-| `run_issue_query` | Run a saved issue query |
 | `get_issue_form_options` | Allowed issue form field values (single call) |
-| `validate_issue_create` | Validate issue create parameters without writing |
-| `validate_issue_update` | Validate issue update parameters without writing |
 | `create_issue` | Create an issue |
 | `update_issue` | Update issue attributes and attachments |
 | `add_issue_note` | Add a comment to an issue (optionally with attachments) |
@@ -226,11 +222,9 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | `list_issue_relations` | List issue relations |
 | `create_issue_relation` | Create a relation between issues |
 | `delete_issue_relation` | Delete an issue relation |
-| `list_subtasks` | Subtasks |
 | `add_issue_watcher` | Add a watcher |
 | `remove_issue_watcher` | Remove a watcher |
-| `update_issue_note` | Edit a journal entry |
-| `set_issue_note_private` | Change journal entry privacy |
+| `update_issue_note` | Edit journal text and/or privacy (`notes` and/or `private_notes`) |
 | `get_private_notes` | Private comments only |
 | `list_issue_categories` | Project issue categories |
 | `create_issue_category` | Create a category |
@@ -241,7 +235,7 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 
 | Tool | Description |
 |------|-------------|
-| `list_users` | Project members; `query` (name/login) and `login` filters; global search is admin-only |
+| `list_users` | Project members; admin global search with `query`, `login`, `name`, `group_id`; `created_on` in admin global results |
 | `list_groups` | Givable groups for `group_id` in `add_project_member` |
 
 ### Time tracking
@@ -252,19 +246,16 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | `create_time_entry` | Create a time entry |
 | `update_time_entry` | Update a time entry |
 | `list_time_entry_activities` | Time-logging activity types (not the project event feed) |
-| `import_time_entries` | Bulk import of time entries |
 
 ### Reference data
 
 | Tool | Description |
 |------|-------------|
-| `list_trackers` | All trackers |
-| `list_project_trackers` | Project trackers |
+| `list_trackers` | Issue trackers (all, or project-scoped with `project`) |
 | `list_issue_statuses` | Issue statuses |
 | `list_issue_priorities` | Issue priorities |
-| `admin_list_users` | Users with filters (admin only) |
 | `get_current_user` | Current user |
-| `list_queries` | Saved queries (metadata; execution is `run_issue_query`) |
+| `list_queries` | Saved queries (metadata; run via `list_issues` + `query_id`) |
 
 ### Search and Wiki
 
@@ -277,6 +268,17 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | `update_wiki_page` | Update a Wiki page |
 | `delete_wiki_page` | Delete a Wiki page |
 | `rename_wiki_page` | Rename a Wiki page |
+
+### Repository / SCM
+
+| Tool | Description |
+|------|-------------|
+| `list_repositories` | SCM repositories in a project |
+| `get_repository` | Repository metadata and default branch |
+| `list_revisions` | Cached changesets (paginated) |
+| `get_revision` | One changeset with optional file changes |
+| `get_repository_file` | Directory listing or file content |
+| `get_repository_diff` | Unified diff with MCP size limits |
 
 ### Forums
 
@@ -293,8 +295,7 @@ With a process-local cache, rate limiting and idempotency guarantees apply only 
 | `list_project_files` | Project files |
 | `upload_file` | Upload a file |
 | `delete_attachment` | Delete an attachment |
-| `get_attachment` | Attachment metadata and `content_url` |
-| `download_attachment` | Attachment content (`content_base64`, up to 10 MiB) |
+| `get_attachment` | Attachment metadata, `content_url`, optional `content_base64` (`include_content`, up to 10 MiB) |
 
 ### Utility
 

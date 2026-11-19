@@ -117,7 +117,7 @@ name: 'semantic_search_issues'
 -> redmine_advanced_search_semantic_search_issues
 ```
 
-`plugin_id`가 이미 `redmine_`로 시작하는 경우(예: `redmine_advanced_checklists`)에도 전체 이름은 `redmine_<plugin_id>_<name>` 규칙을 따릅니다: `redmine_redmine_advanced_checklists_<name>`.
+`plugin_id`가 이미 `redmine_`로 시작하는 경우(예: `redmine_advanced_checklists`)에도 전체 이름은 `redmine_<plugin_id>_<name>` 규칙을 따릅니다: `redmine_advanced_checklists_<name>`.
 
 resources의 경우 고유한 URI를 사용합니다. 예:
 

@@ -37,7 +37,7 @@ Einen einheitlichen Ansatz zur Integration von Redmine-Plugins mit AI bereitstel
 
 - Ein Erweiterungs-Plugin kann beliebig viele Tools registrieren.
 - Jedes Tool hat: Name, Beschreibung, Input-Schema, Output-Schema, Berechtigungsanforderung und Handler.
-- Vollständiger Tool-Name: `redmine_<plugin_id>_<name>`, zum Beispiel `redmine_redmine_advanced_checklists_get_issue_checklists`, `redmine_advanced_search_semantic_search_issues`.
+- Vollständiger Tool-Name: `redmine_<plugin_id>_<name>`, zum Beispiel `redmine_advanced_checklists_get_checklists`, `redmine_advanced_search_semantic_search_issues`.
 - Doppelte Tool-Namen sind verboten.
 - Ein Tool erscheint in MCP nur für Benutzer mit den entsprechenden Berechtigungen.
 - Ein vorgangsbezogenes Erweiterungs-Tool kann ein aktiviertes Redmine-Projektmodul erfordern (der Modul-Identifikator muss nicht der Plugin-ID entsprechen). In `tools/list` ist ein solches Tool sichtbar, wenn der Benutzer die deklarierte Berechtigung in mindestens einem sichtbaren Projekt mit diesem Modul hat. Ohne Modulanforderung genügt die Berechtigung in mindestens einem sichtbaren Projekt. Der Aufruf prüft weiterhin den konkreten Vorgang: Sichtbarkeit, Berechtigung in seinem Projekt und aktiviertes Modul; sonst liefert die Antwort „not found“.

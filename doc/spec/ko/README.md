@@ -166,7 +166,7 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 ### 작업 신뢰성
 
 - `expected_updated_at` — 민감한 update/delete 작업에서 사용.
-- `idempotency_key` — `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `import_time_entries`, `upload_file`에서 사용.
+- `idempotency_key` — `create_issue`, `copy_issue`, `update_issue`, `add_issue_note`, `create_time_entry`, `upload_file`에서 사용.
 
 ### 제한
 
@@ -190,7 +190,7 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | 도구 | 설명 |
 |------|-------------|
 | `list_projects` | 프로젝트 목록 |
-| `get_project` | 프로젝트 세부 정보 |
+| `get_project` | 프로젝트 세부 정보; 선택적으로 모듈용 `include_modules` |
 | `list_project_issue_custom_fields` | 프로젝트 이슈 사용자 정의 필드 |
 | `summarize_project_status` | N일간 서버가 생성한 프로젝트 메트릭 요약 |
 | `list_project_activities` | 프로젝트 활동 피드(이벤트, 시간 기록 activity 유형 아님) |
@@ -202,7 +202,6 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `list_project_members` | 프로젝트 멤버 및 역할 |
 | `list_project_member_candidates` | 프로젝트에 추가할 수 있는 사용자 및 그룹 |
 | `list_roles` | 프로젝트에서 관리할 수 있는 역할 |
-| `get_project_modules` | 활성화된 프로젝트 모듈 |
 | `add_project_member` | 멤버 추가 |
 | `update_project_member` | 멤버 역할 변경 |
 | `remove_project_member` | 멤버 제거 |
@@ -214,10 +213,7 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `get_issue` | 이슈 세부 정보(저널, 첨부 파일, 사용자 정의 필드 등) |
 | `list_issues` | 필터 및 페이지네이션이 있는 이슈 목록 |
 | `search_issues` | 이슈 텍스트 검색 |
-| `run_issue_query` | 저장된 이슈 쿼리 실행 |
 | `get_issue_form_options` | 허용된 이슈 양식 필드 값(단일 호출) |
-| `validate_issue_create` | 쓰기 없이 이슈 생성 매개변수 검증 |
-| `validate_issue_update` | 쓰기 없이 이슈 업데이트 매개변수 검증 |
 | `create_issue` | 이슈 생성 |
 | `update_issue` | 이슈 속성 및 첨부 파일 업데이트 |
 | `add_issue_note` | 이슈에 댓글 추가(선택적으로 첨부 파일 포함) |
@@ -226,11 +222,9 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `list_issue_relations` | 이슈 관계 목록 |
 | `create_issue_relation` | 이슈 간 관계 생성 |
 | `delete_issue_relation` | 이슈 관계 삭제 |
-| `list_subtasks` | 하위 작업 |
 | `add_issue_watcher` | 감시자 추가 |
 | `remove_issue_watcher` | 감시자 제거 |
 | `update_issue_note` | 저널 항목 편집 |
-| `set_issue_note_private` | 저널 항목 비공개 설정 변경 |
 | `get_private_notes` | 비공개 댓글만 |
 | `list_issue_categories` | 프로젝트 이슈 카테고리 |
 | `create_issue_category` | 카테고리 생성 |
@@ -252,19 +246,16 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `create_time_entry` | 시간 기록 생성 |
 | `update_time_entry` | 시간 기록 업데이트 |
 | `list_time_entry_activities` | 시간 기록 activity 유형(프로젝트 이벤트 피드 아님) |
-| `import_time_entries` | 시간 기록 일괄 가져오기 |
 
 ### 참조 데이터
 
 | 도구 | 설명 |
 |------|-------------|
-| `list_trackers` | 모든 트래커 |
-| `list_project_trackers` | 프로젝트 트래커 |
+| `list_trackers` | 일감 트래커(전체 또는 `project`로 프로젝트별) |
 | `list_issue_statuses` | 이슈 상태 |
 | `list_issue_priorities` | 이슈 우선순위 |
-| `admin_list_users` | 필터가 있는 사용자(관리자만) |
 | `get_current_user` | 현재 사용자 |
-| `list_queries` | 저장된 쿼리(메타데이터; 실행은 `run_issue_query`) |
+| `list_queries` | 저장된 쿼리(메타데이터; 실행은 `query_id`가 있는 `list_issues`) |
 
 ### 검색 및 Wiki
 
@@ -277,6 +268,17 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `update_wiki_page` | Wiki 페이지 업데이트 |
 | `delete_wiki_page` | Wiki 페이지 삭제 |
 | `rename_wiki_page` | Wiki 페이지 이름 변경 |
+
+### Repository / SCM
+
+| 도구 | 설명 |
+|------|-------------|
+| `list_repositories` | 프로젝트의 SCM 저장소 |
+| `get_repository` | 저장소 metadata 및 기본 브랜치 |
+| `list_revisions` | 캐시된 changeset(페이지네이션) |
+| `get_revision` | 선택적 파일 변경이 있는 changeset |
+| `get_repository_file` | 디렉터리 목록 또는 파일 내용 |
+| `get_repository_diff` | MCP 크기 제한이 있는 unified diff |
 
 ### 게시판
 
@@ -293,8 +295,7 @@ host가 일치하지 않으면 MCP 엔드포인트가 HTTP `403 Forbidden`을 �
 | `list_project_files` | 프로젝트 파일 |
 | `upload_file` | 파일 업로드 |
 | `delete_attachment` | 첨부 파일 삭제 |
-| `get_attachment` | 첨부 파일 메타데이터 및 `content_url` |
-| `download_attachment` | 첨부 파일 내용(`content_base64`, 최대 10 MiB) |
+| `get_attachment` | 첨부 메타데이터, `content_url`, 선택적 `content_base64`(`include_content`, 최대 10 MiB) |
 
 ### 유틸리티
 

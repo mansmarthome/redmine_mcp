@@ -27,6 +27,7 @@ Redmine MCP는 요청 간 세션 지속 없이(stateless) Streamable HTTP 모드
 - 도구 응답은 `structuredContent`에 JSON 래퍼(`ok`, `data` 또는 `error`)를 반환하고, `content`에 짧은 텍스트 표현(성공 시 JSON 문자열, 실패 시 오류 메시지)을 반환합니다.
 - API 키는 `X-Redmine-API-Key` 헤더에서만 수락됩니다. JSON-RPC 본문은 인증에 사용되지 않으며 요청 크기 확인 전에 파싱되지 않습니다.
 - JSON 파싱 전에 HTTP 본문 크기가 제한됩니다. 한도를 초과하면 요청이 거부되고 MCP 전송은 본문을 읽지 않습니다.
+- `initialize`의 server instructions에는 일반 안내가 포함됩니다. 일감 설명, 메모, Wiki 본문은 활성 Redmine 텍스트 서식으로 작성하세요. `common_mark`는 CommonMark Markdown, `textile`는 Textile, 서식 비활성 시(빈 문자열)에는 일반 텍스트입니다. 플러그인이 등록한 서드파티 서식에는 instructions에 활성 서식 식별자와, 문법을 모르면 확인하라는 짧은 안내를 넣습니다. 문법 자체는 해당 서식 문서에서 확인하며, 실제 코드는 `redmine_get_mcp_info`로도 볼 수 있습니다. 설정에 등록되지 않은 서식이 남아 있으면(플러그인 제거 후 등) instructions는 해당 서식을 사용할 수 없다고 알리고 일반 텍스트 작성을 안내합니다(사용 가능한 서식 없이 Redmine이 표시하는 것과 같음). 서식 값은 요청용 instructions를 만들 때 읽으며 애플리케이션 프로세스 전체에 캐시하지 않습니다.
 
 ## 엣지 케이스
 
@@ -34,6 +35,7 @@ Redmine MCP는 요청 간 세션 지속 없이(stateless) Streamable HTTP 모드
 - stateless 모드에서 독립 SSE 스트림용 `GET` 요청은 지원되지 않습니다(HTTP 405) — 예상된 동작입니다.
 - 로드 밸런서 뒤에서 작동할 때 sticky session이 필요하지 않습니다.
 - 도구 목록은 권한에 따라 사용자마다 다를 수 있습니다.
+- 관리에서 텍스트 서식을 바꾼 뒤 Redmine을 재시작하지 않아도 새 `initialize`는 instructions의 안내를 갱신합니다. 현재 서식 코드는 재연결 없이 `redmine_get_mcp_info`로도 확인할 수 있습니다.
 
 ## 오류 처리
 
@@ -56,3 +58,6 @@ Redmine MCP는 요청 간 세션 지속 없이(stateless) Streamable HTTP 모드
 9. 접근 불가 프로젝트 URI로 `resources/read` — 리소스 내용을 반환하지 않음.
 10. 접근 불가 프로젝트 인수로 `prompts/get` — 접근 거부.
 11. 빈 args, 추가 필드, 잘못된 인수 타입으로 `tools/call` — `isError: true` 및 `structuredContent.error.code` `VALIDATION_ERROR` 반환.
+12. `initialize` instructions는 일감 설명, 메모, Wiki에 대해 활성 텍스트 서식(CommonMark, Textile, 일반 텍스트 또는 등록된 서드파티 서식 식별자)을 언급한다.
+13. Redmine을 재시작하지 않고 텍스트 서식을 바꾼 뒤 새 `initialize`는 instructions에 새 서식을 반영한다.
+14. 설정에 등록되지 않은 서식이 있으면 `initialize`는 사용할 수 없음을 알리고 일반 텍스트를 안내한다.

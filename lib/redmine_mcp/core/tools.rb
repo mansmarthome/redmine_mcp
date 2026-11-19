@@ -33,6 +33,7 @@ module RedmineMcp
         require_relative 'tools/discovery'
         require_relative 'tools/search_wiki'
         require_relative 'tools/boards'
+        require_relative 'tools/repositories'
         require_relative 'tools/files'
         require_relative 'tools/meta'
 
@@ -43,6 +44,7 @@ module RedmineMcp
         Discovery.register!
         SearchWiki.register!
         Boards.register!
+        Repositories.register!
         Files.register!
         Meta.register!
       end

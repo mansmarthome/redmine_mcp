@@ -27,6 +27,7 @@ Permettre aux clients IA externes d'interagir avec Redmine en utilisant le proto
 - Les réponses d'outils retournent une enveloppe JSON dans `structuredContent` (`ok`, `data` ou `error`) et une courte représentation textuelle dans `content` (chaîne JSON en cas de succès, message d'erreur en cas d'échec).
 - La clé API est acceptée uniquement depuis l'en-tête `X-Redmine-API-Key`. Le corps JSON-RPC n'est pas utilisé pour l'authentification et n'est pas parsé avant la vérification de la taille de la requête.
 - La taille du corps HTTP est limitée avant le parsing JSON : lorsque la limite est dépassée, la requête est rejetée et le transport MCP ne lit pas le corps.
+- Dans `initialize`, les instructions du serveur incluent une indication générale : rédiger les descriptions de demandes, notes et textes Wiki avec le formatage de texte Redmine actif. Pour `common_mark` — CommonMark Markdown ; pour `textile` — Textile ; si le formatage est désactivé (chaîne vide) — texte brut. Pour un format tiers enregistré par un plugin, les instructions incluent une brève indication avec l’identifiant du format actif et une demande de clarifier sa syntaxe si elle est inconnue ; la syntaxe elle-même provient de la documentation de ce format, et le code actuel est aussi disponible via `redmine_get_mcp_info`. Si les paramètres indiquent un format non enregistré (par exemple après suppression du plugin), les instructions signalent que le format est indisponible et proposent le texte brut — comme l’affichage Redmine sans formatage disponible. La valeur du format est lue lors de la construction des instructions pour la requête et n'est pas mise en cache pour tout le processus applicatif.
 
 ## Cas limites
 
@@ -34,6 +35,8 @@ Permettre aux clients IA externes d'interagir avec Redmine en utilisant le proto
 - En mode stateless, les requêtes `GET` pour un flux SSE autonome ne sont pas prises en charge (HTTP 405) — comportement attendu.
 - Lors d'un fonctionnement derrière un load balancer, les sessions persistantes ne sont pas requises.
 - La liste d'outils peut différer entre les utilisateurs selon les permissions.
+- Après un changement du formatage de texte dans l'administration sans redémarrer Redmine, un nouvel `initialize` reçoit l'indication mise à jour dans les instructions ; le code de format actuel est aussi disponible via `redmine_get_mcp_info` sans reconnexion.
+- Si les paramètres conservent l’identifiant de format d’un plugin supprimé, `initialize` ne le traite pas comme actif et propose le texte brut.
 
 ## Gestion des erreurs
 
@@ -56,3 +59,6 @@ Permettre aux clients IA externes d'interagir avec Redmine en utilisant le proto
 9. `resources/read` avec un URI pour un projet inaccessible ne retourne pas le contenu de la ressource.
 10. `prompts/get` avec un argument de projet inaccessible refuse l'accès.
 11. `tools/call` avec des args vides, un champ supplémentaire ou un type d'argument incorrect retourne `isError: true` et `structuredContent.error.code` `VALIDATION_ERROR`.
+12. Les instructions d'`initialize` mentionnent le formatage de texte actif (CommonMark, Textile, texte brut ou identifiant de format tiers enregistré) pour les descriptions de demandes, notes et Wiki.
+13. Après un changement de formatage de texte sans redémarrer Redmine, un nouvel `initialize` reflète le nouveau format dans les instructions.
+14. Si les paramètres nomment un format non enregistré, `initialize` signale qu’il est indisponible et propose le texte brut.

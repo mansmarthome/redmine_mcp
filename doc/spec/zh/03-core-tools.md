@@ -15,7 +15,7 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 - 项目
 - 版本
 - 成员 / 角色
-- 议题（CRUD、relations、watchers、notes、categories、form options、dry-run validation、saved queries）
+- 议题（CRUD、relations、watchers、notes、categories、form options、保存的查询）
 - 工时记录
 - 跟踪器、状态、优先级、查询
 - 项目活动
@@ -34,7 +34,8 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 - 结果以 JSON 封装形式在 `structuredContent` 中返回，并在 `content` 中以文本形式重复。
 - 数据经 Redmine 项目/议题可见性与权限过滤。
 - 参数 `project` 为字符串：数字 id 的字符串形式（例如 `"1"`）或项目 identifier（例如 `"ecookbook"`）。
-- 启用**只读模式**时，写入工具返回错误。只读工具（包括 `list_issue_relations`、`get_issue_form_options`、`validate_issue_create` 和 `validate_issue_update`）仍可用。
+- 显式指定的不存在或不可见 `project` 在工具权限检查之前返回 `NOT_FOUND`（见 [02-authentication.md](02-authentication.md)）；可见但缺少所需权限的项目返回 `FORBIDDEN`。不含 `project` 的 tools 不受影响。
+- 启用**只读模式**时，写入工具返回错误。只读工具（含 `list_issue_relations` 和 `get_issue_form_options`）仍可用。
 
 ### 项目管理
 
@@ -53,7 +54,6 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `list_project_members` | R | `view_members` |
 | `list_project_member_candidates` | R | `manage_members` |
 | `list_roles` | R | `manage_members` + `project` |
-| `get_project_modules` | R | `view_project` |
 | `add_project_member` | W | `manage_members` |
 | `update_project_member` | W | `manage_members` |
 | `remove_project_member` | W | `manage_members` |
@@ -65,10 +65,7 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `get_issue` | R | `view_issues` |
 | `list_issues` | R | `view_issues` |
 | `search_issues` | R | `view_issues` |
-| `run_issue_query` | R | `view_issues` |
 | `get_issue_form_options` | R | `view_issues` |
-| `validate_issue_create` | R | `add_issues` |
-| `validate_issue_update` | R | `edit_issues` |
 | `create_issue` | W | `add_issues` |
 | `update_issue` | W | 属性——若可编辑；仅 `uploads`——若可添加附件 |
 | `add_issue_note` | W | `add_issue_notes`；`private_notes=true` 还需 `set_notes_private` |
@@ -77,11 +74,9 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `list_issue_relations` | R | `view_issues` |
 | `create_issue_relation` | W | `manage_issue_relations` |
 | `delete_issue_relation` | W | `manage_issue_relations` |
-| `list_subtasks` | R | `view_issues` |
 | `add_issue_watcher` | W | `add_issue_watchers` |
 | `remove_issue_watcher` | W | `delete_issue_watchers` |
-| `update_issue_note` | W | 日志条目可见且可编辑（`edit_issue_notes` / `edit_own_issue_notes`）；`private_notes` 还需 `set_notes_private` |
-| `set_issue_note_private` | W | 日志条目可见且可编辑，另需 `set_notes_private` |
+| `update_issue_note` | W | journal 条目可见且可编辑（`edit_issue_notes` / `edit_own_issue_notes`）；更改 `private_notes` 另外需要 `set_notes_private` |
 | `get_private_notes` | R | `view_private_notes` |
 | `list_issue_categories` | R | `view_issues` |
 | `create_issue_category` | W | `manage_categories` |
@@ -103,7 +98,6 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `create_time_entry` | W | `log_time` |
 | `update_time_entry` | W | 条目可由当前用户编辑（`edit_time_entries` / `edit_own_time_entries`） |
 | `list_time_entry_activities` | R | `log_time` |
-| `import_time_entries` | W | `log_time` |
 
 `list_time_entry_activities` — 用于时间记录的工作活动类型目录，不是项目事件 feed（`list_project_activities`）。
 
@@ -112,10 +106,8 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | 工具 | R/W | 权限 |
 |------|-----|------------|
 | `list_trackers` | R | `view_issues` |
-| `list_project_trackers` | R | `view_issues` |
 | `list_issue_statuses` | R | `view_issues` |
 | `list_issue_priorities` | R | `view_issues` |
-| `admin_list_users` | R | admin |
 | `get_current_user` | R | `use_mcp` |
 | `list_queries` | R | `view_issues` |
 
@@ -130,6 +122,17 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `update_wiki_page` | W | `edit_wiki_pages` 且页面必须可编辑 |
 | `delete_wiki_page` | W | `delete_wiki_pages` 且页面必须可编辑 |
 | `rename_wiki_page` | W | `rename_wiki_pages` 且页面必须可编辑 |
+
+### Repository / SCM
+
+| 工具 | R/W | 权限 |
+|------|-----|------------|
+| `list_repositories` | R | `view_changesets` **或** `browse_repository` |
+| `get_repository` | R | `view_changesets` **或** `browse_repository` |
+| `list_revisions` | R | `view_changesets` |
+| `get_revision` | R | `view_changesets` |
+| `get_repository_file` | R | `browse_repository` |
+| `get_repository_diff` | R | `browse_repository` |
 
 ### 论坛
 
@@ -147,7 +150,6 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 | `upload_file` | W | `manage_files` |
 | `delete_attachment` | W | `manage_files`（或容器权限） |
 | `get_attachment` | R | 附件容器上的权限 |
-| `download_attachment` | R | 附件容器上的权限 |
 
 ### 元信息
 
@@ -155,9 +157,11 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 |------|-----|------------|
 | `get_mcp_info` | R | `use_mcp` |
 
-`get_mcp_info` 返回当前会话 MCP 插件的元数据，而非 Redmine 应用程序版本或设置：`server_version`（MCP 插件版本）、`read_only_mode`、`auth_mode`、当前用户简要数据及 `capabilities.issue_search`。响应中不列出第三方插件安装情况：其 MCP 工具通过 `tools/list` 及扩展自行注册的 `capabilities` 可见。
+`get_mcp_info` 返回当前会话 MCP 插件的元数据，而非 Redmine 版本或任意应用程序设置：`server_version`（MCP 插件版本）、`read_only_mode`、`auth_mode`、当前用户简要数据、`capabilities.issue_search` 以及 `text_formatting`。响应中不列出第三方插件安装情况：其 MCP 工具通过 `tools/list` 及扩展自行注册的 `capabilities` 可见。
 
-规范全名 — `redmine_get_mcp_info`。旧名称 `get_server_info`（`redmine_get_server_info`）至少保留到下一 major 版本作为 callable alias：相同权限、输入、输出和行为；以旧名称 `tools/call` 执行相同操作；alias 不在 `tools/list` 中发布；alias 调用可在 audit log 中通过调用的工具名区分。其他工具的链接使用规范名。
+`text_formatting` 是例外：它是每次调用时读取的当前 Redmine 文本格式设置（`Setting.text_formatting`）。客户端将其用于问题描述、备注和 Wiki 正文。典型值：`common_mark`、`textile`；禁用格式时为空字符串（纯文本）；已注册的第三方格式为其代码。若设置中为未注册格式（例如插件已卸载），则返回空字符串——与 Redmine 在无可用格式时的显示一致。在管理界面更改格式且不重启 Redmine 时，下一次 `get_mcp_info` 调用可见新值。
+
+完整 tool 名 — `redmine_get_mcp_info`。旧名（`get_server_info`、`redmine_get_server_info` 及其他 core callable alias）在本 major 中不再注册，`tools/call` 也不接受。
 
 `capabilities.issue_search` 包含搜索模式：
 
@@ -182,43 +186,43 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 - `create_issue_category` / `update_issue_category`：`assigned_to_id` 为 principal ID（用户或组），不限于用户。
 - 议题附件的 `delete_attachment` 遵循「该议题附件是否可删除」规则（含自己的议题和 tracker 权限），不仅限于全局 `edit_issues`。在 `tools/list` 中，若用户可删除至少一个附件（项目文件、议题或 wiki），工具可见，不仅限于全局 `manage_files`。
 - `get_wiki_page`：`attachments` 始终在响应中；默认 `[]` 和 `attachments_pagination: null`；`include_attachments=true` 时——带 `attachment_limit`/`attachment_offset` 的分页附件列表（默认和最大 100）。历史 `version` 需要查看 wiki 编辑的权限。更改、重命名或删除受保护页面需要保护 wiki 页面的权限。
-- `list_issues`、`search_issues`、`list_subtasks`、`run_issue_query`：默认摘要字段；完整描述通过 `fields` 或 `get_issue`。
-- `get_issue`、`list_issues`、`search_issues`、`list_subtasks`、`run_issue_query`、`create_issue`、`update_issue` 和 `copy_issue` 的工单对象包含 `url` — Web UI 的绝对链接。主机来自 Redmine「主机名和路径」与协议设置，与邮件相同。若「主机名和路径」为空，`url` 为 `null`，而非无效链接。list/search 摘要默认包含 `url`。`search_all` 中 `type` 为 `issues` 的项以及 `get_issue` 的嵌套 `children` 也包含 `url`。向用户引用工单时，客户端从工具结果复制 `url`。
+- `list_issues`、`search_issues：默认摘要字段；完整描述通过 `fields` 或 `get_issue`。
+- `get_issue`、`list_issues`、`search_issuescreate_issue`、`update_issue` 和 `copy_issue` 的议题对象包含 `url` — 指向 Web UI 的绝对链接。主机来自 Redmine「主机名和路径」及协议设置，与邮件相同。若「主机名和路径」为空，`url` 为 `null` 而非无效链接。list/search 摘要默认含 `url`。`search_all` 中 `type` 为 `issues` 的项及 `get_issue` 嵌套 `children` 也含 `url`。向用户引用议题时，客户端从 tool 结果复制 `url`。
 - `create_issue` 和 `update_issue` 接受显式议题**属性**（`subject`、`description`、`tracker_id`、`status_id`、`custom_fields` 等）。所有显式传入的属性（含创建时的 `subject` 和 `description`）经与 Redmine Web 表单相同的写入规则。创建/更新前，若允许字段值未知，agent 应调用 `get_issue_form_options`。显式传入但 Redmine 未应用的值导致错误，而非部分成功。
-- 若客户端在 `create_issue` / `validate_issue_create` 中**未传入** `start_date`，且 Redmine 启用了「开始日期 = 创建日期」（`default_issue_start_date_to_creation_date`），MCP 将 `start_date` 设为用户当天——与新议题表单一致。显式 `start_date`（含 `null`）禁用该替换。`copy_issue` 和 `update_issue` 不自行替换日期。
+- 若客户端在 `create_issue` 中**未传递** `start_date`，且 Redmine 启用「开始日期 = 创建日期」（`default_issue_start_date_to_creation_date`），MCP 将 `start_date` 设为用户当天 — 与新议题表单相同。显式 `start_date`（含 `null`）禁用此替换。`copy_issue` 和 `update_issue` 不会自行替换日期。
 - `update_issue` 不接受 `notes`、`private_notes` 或 `watcher_user_ids`。评论 — `add_issue_note`; 观察者 — `add_issue_watcher` / `remove_issue_watcher`。
+- `update_issue` 接受可选 `project`（字符串 ID 或 identifier），用于将议题移到另一项目。规则与 Redmine Web 表单相同：当前用户须可编辑该议题，目标项目须在 `Issue#allowed_target_projects` 中，且在目标项目上需要 `add_issues`（若与当前项目相同则始终允许）。迁移执行标准 Redmine 回调（`after_project_change`，以及按核心规则更新关联 time entries 与子任务）。显式传入的非法项目产生带 `project_id` 的 `rejected_fields`；若 identifier/id 不存在或项目不可见，则为「项目未找到」错误。`project` 不能通过 `null` 清空 — 只能改为另一项目。在 `get_issue_form_options.editable_fields` 中，当表单上 `project_id` 可写时，字段显示为 `project`。
 - `update_issue` 还支持 `uploads` 向议题附加文件。附件仅在属性验证成功（含 `rejected_fields`）后处理。仅含 `uploads`（无属性）的调用在用户可向议题添加附件时允许——包括允许评论但无法编辑属性时。可选 `idempotency_key` 防止响应丢失后的重试（含重复上传相同文件）。响应中的 `journal_id` 为**本次**调用的 journal 条目，非议题最新条目。
 - 要清空可选字段，对 `assigned_to_id`、`category_id`、`fixed_version_id`、`parent_issue_id`、`start_date`、`due_date` 或 `estimated_hours` 传入 `null`。`update_version.due_date` / `wiki_page_title` 和 `update_issue_category.assigned_to_id` 同理。
 - `create_issue` 不支持 `uploads`。
 - `update_issue` 接受 `uploads[*].content_base64` 和 `uploads[*].filename`。上传成功后响应含 `added_attachments`——仅本次调用的文件，非完整议题附件列表。损坏的 Base64 为参数错误。
 - `update_issue` 接受 `status_name` 并解析为 `status_id`。
 - `upload_file` 接受 `content_base64`（最大 20 MiB）；`project`、`filename` 和 `content_base64` 为必填。
-- `get_attachment` 返回 `attachment_id`、`filename`、`content_type`、`size`（附件文件大小）和 `content_url`（不含文件字节）。若「主机名和路径」为空，`content_url` 为 `null`。
-- `download_attachment` 返回当前用户可见的单个附件的 `attachment_id`、`filename`、`content_type`、`size`（实际内容字节数）和 `content_base64`。MIME 未知时——`application/octet-stream`。不增加 `downloads` 计数。大小限制 10 MiB（读取前检查磁盘 `File.size`，读取后检查 `bytesize`）；超出——`FILE_TOO_LARGE`。响应中不返回服务器文件系统路径。`attachment_id` 来自 `redmine_get_issue` / `redmine_get_wiki_page`（`include_attachments=true`）、`redmine_list_project_files` 或 `redmine_get_attachment`。读取、解析或处理附件为文件时，在本地解码 `content_base64`。不存在和不可访问的附件返回相同「未找到」响应。
-- `create_time_entry` 和 `import_time_entries.entries` 项需要 `hours` 以及 `project` 或 `issue_id`。`hours` 可为 0；零值有效性和每日上限由 Redmine 检查（`timelog_accept_0_hours`、`timelog_max_hours_per_day`）。
-- 议题创建/更新时的 `assigned_to_id` 为 principal ID（来自 `get_issue_form_options.assignees` 的用户或组）；`null` 清除负责人。`add_issue_watcher` / `remove_issue_watcher` 的规范输入为 `principal_id`（用户或组）。旧 `user_id` 作为相同 ID 的 alias 被接受；两者不能同时传递。响应包含 `principal_id` 及相同值的重复 `user_id`。在其他工具中，`user_id` 为用户 ID。当前用户使用 `assignee_ref` 或 `user_ref` 值为 `me`。
+- `get_attachment` 返回 `attachment_id`、`filename`、`content_type`、`size` 和 `content_url`；当 `include_content` 缺失或为 `false` 时不返回文件字节。`size` 为附件 `filesize`。若「主机名和路径」为空，则 `content_url` 为 `null`。`include_content: true` 时还返回 `content_base64`；此时 `size` 为实际内容字节数。未知 MIME — `application/octet-stream`。不增加 `downloads` 计数。10 MiB 限制（读取前磁盘 `File.size` 与读取后 `bytesize`）仅在 `include_content: true` 时适用；超出 — `FILE_TOO_LARGE`。响应中不返回服务器文件系统路径。`attachment_id` 来自 `redmine_get_issue` / `redmine_get_wiki_page` 的 `include_attachments=true` 或 `redmine_list_project_files`。要读取或处理附件，请传 `include_content: true` 并在本地解码 `content_base64`。不存在与不可访问的附件返回相同的「未找到」响应。
+- `create_time_entry` 需要 `hours` 以及 `project` 或 `issue_id`。`hours` 可以为 0；零值有效性和每日上限由 Redmine 检查（`timelog_accept_0_hours`、`timelog_max_hours_per_day`）。
+- 创建/更新任务时 `assigned_to_id` 为 principal ID（来自 `get_issue_form_options.assignees` 的用户或组）；`null` 清除负责人。`add_issue_watcher` / `remove_issue_watcher` 需要 `issue_id` 与 `principal_id`（用户或组）；响应包含 `issue_id` 与 `principal_id`。其他 tool 中 `user_id` 为用户 ID。当前用户使用 `assignee_ref` 或 `user_ref` 值 `me`。
 - 敏感更新/删除上的 `expected_updated_at`（可选）：与 `updated_on` 不匹配时返回 `CONFLICT`。
-- `create_issue`、`copy_issue`、`update_issue`、`add_issue_note`、`create_time_entry`、`import_time_entries`、`upload_file` 上的 `idempotency_key`（可选）：相同 key 且**相同参数集**（key 本身除外）的重试返回缓存的成功结果（TTL 24 h）。相同 key 不同 payload——`CONFLICT`，无重复写入。首次请求仍在运行时，相同 key 的重试不执行另一次写入（「进行中」标记与成功结果相同存活 24 h）。无 fingerprint 的缓存条目（此版本前的缓存）在 TTL 过期前仍按原样返回。服务器 60 s 超时适用于**读取**。写入操作不被服务器超时中断，以便成功保存后记录幂等结果；客户端若丢失连接可用相同 key 重试。`import_time_entries` 中意外异常会回滚该调用中已插入的条目；各行正常验证错误仍收集，不回滚已成功的。
-- `delete_attachment` 默认仅删除项目/版本文件；议题/wiki 附件需要 `confirm_delete_any_attachment=true`。规范全名 — `redmine_delete_attachment`。旧名称 `delete_file`（`redmine_delete_file`）至少保留到下一 major 版本作为 callable alias：相同权限、输入、输出和行为；以旧名称 `tools/call` 执行相同操作；alias 不在 `tools/list` 中发布；alias 调用可在 audit log 中通过调用的工具名区分。其他工具的链接使用规范名。
+- `idempotency_key`（可选）用于 `create_issue`、`copy_issue`、`update_issue`、`add_issue_note`、`create_time_entry`、`upload_file`：以相同键和**相同参数集**（键本身除外）重试时返回缓存的成功结果（TTL 24 小时）。相同键但不同 payload — `CONFLICT`，不重复写入。首个请求仍在执行时，相同键的重试不会再次写入（«in progress» 标记与成功结果一样存活 24 小时）。无 fingerprint 的缓存条目（本版本之前的缓存）在 TTL 到期前仍按以前方式返回。服务器 timeout 60 秒适用于**读取**。写入操作不会因服务器 timeout 中断，以便成功保存后记录幂等结果；客户端若丢失连接可用相同键重试。
+- `delete_attachment` 默认仅删除 project/version 文件；issue/wiki 附件需 `confirm_delete_any_attachment=true`。完整名 — `redmine_delete_attachment`。旧名（`delete_file`、`redmine_delete_file`）不再注册。
 - 列表/搜索使用 `limit`/`offset`。DB 查询在查询层限制页面，而非裁剪已加载的完整列表。任何分页 MCP 集合有显式稳定顺序；最后准则始终为 `id`，避免页面跳过或重复项。
 - 子串搜索（`query`、`login`、`name` 及文本 `search_issues`）按字符字面匹配：`%` 和 `_` 不是 SQL 通配符。
 - MCP 限制：读取工具超时 60 s，每用户速率限制 120 次/分钟，MCP 请求 HTTP 体 36 MiB，JSON 工具参数最大 32 MiB，上传 base64 最大 20 MiB，下载 base64 最大 10 MiB。任何 `content_base64` 中损坏的 Base64 在工具执行前为参数错误。
 - 每次工具调用（含访问拒绝）写入结构化审计日志（tool、user、target IDs、outcome、duration、correlation_id）并计入速率限制；不记录 base64 内容和私有笔记。Target IDs 含 `board_id`、`message_id`、`query_id`、`user_id`、`group_id` 等。
-- 每个核心工具的 `outputSchema` 描述 `data` 顶层（列表——`items` 元素字段），而非开放任意对象。schema 字段集与实际响应一致：`list_users` 无 `created_on`，`admin_list_users` 有 `created_on`；`get_attachment` 含 `size` 和 `content_url`。实际响应可能为空的字段允许 `null`（含 `time_entry.issue`、无 include 时的 `*_pagination`、`estimation_accuracy`、附件 `content_type`）。Custom field 值和 `possible_values` 不限于对象。`attachments_not_saved` 为文件名数组。
+- 每个 core tool 的 `outputSchema` 描述 `data` 顶层（列表为 `items` 元素字段），而非任意开放对象。模式字段集与实际响应一致：带 `project` 的 `list_users` 元素无 `created_on`；管理员无 `project` 的全局 `list_users` 包含 `created_on`；`get_attachment` 包含 `size`、`content_url` 及可选 `content_base64`。实际响应中可能为空的字段允许 `null`（包括 `time_entry.issue`、无 include 的 `*_pagination`、`estimation_accuracy`、附件 `content_type`）。自定义字段值和 `possible_values` 不限于对象。`attachments_not_saved` — 文件名数组。
 - schema 中 `summarize_project_status.days`：默认 30，最小 1，最大 365。
 - `search_all.resources`：最多两个唯一值。
 - `version_id`、`file_id`、`tracker_id` 为不小于 1 的整数。
 
 ### `get_project`
 
-- 输入：`project`（必填）。
-- 输出：`id`、`name`、`identifier`、`description`、`homepage`、`status`、`is_public`、`inherit_members`、`created_on`、`updated_on`、`parent`（对象 `id`/`name`/`identifier` 或 `null`）、`subprojects`（可见子项目简要列表：`id`/`name`/`identifier`）、`custom_fields`、`last_activity_date`。
+- 输入：`project`（必填）；可选 `include_modules`（boolean）。
+- 输出：`id`、`name`、`identifier`、`description`、`homepage`、`status`、`is_public`、`inherit_members`、`created_on`、`updated_on`、`parent`（对象 `id`/`name`/`identifier` 或 `null`）、`subprojects`（可见子项目简要列表：`id`/`name`/`identifier`）、`custom_fields`、`last_activity_date`。`include_modules: true` 时另有 `enabled_modules` — 已启用模块名称数组。
 - `parent` 仅在父项目对当前用户可见时填充；否则 `null`。
-- 不返回成员、已启用模块或议题统计。模块——`get_project_modules`；成员——`list_project_members`；议题聚合——`summarize_project_status`。
+- 不返回成员或议题统计。成员 — `list_project_members`；议题聚合 — `summarize_project_status`。
 
 ### `get_issue_form_options`
 
-- 创建/更新前一次调用替代多次参考查询。独立的 `list_project_trackers`、`list_issue_statuses`、`list_issue_priorities`、`list_issue_categories`、`list_versions`、`list_users`、`list_project_issue_custom_fields` 仍可用。
+- 创建/更新前一次调用替代多次参考查询。独立的 `list_trackers`（可选 `project`）、`list_issue_statuses`、`list_issue_priorities`、`list_issue_categories`、`list_versions`、`list_users`、`list_project_issue_custom_fields` 仍可用。
 - 输入：`project`（必填）；可选 `tracker_id`、`issue_id`。
 - 快照反映**当前用户的议题表单**，而非完整项目配置：与 Redmine UI 提供的相同允许值。
 - 无 `issue_id` 的 `tracker_id` 设置创建表单上下文。tracker 必须对当前用户可在表单上选择；否则——参数错误。
@@ -246,46 +250,35 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 - 输出：`issue_id`、`journal_id`、`notes`、`private_notes`；有 `uploads` 时——`added_attachments`（仅本次调用的文件）。
 - 只读模式下不可用。
 
-### `update_issue_note` / `set_issue_note_private`
+### `update_issue_note`
 
 - 仅处理当前用户**可见**的 journal 条目（无查看私有笔记权限时无法访问他人的私有评论）。
-- 条目必须可由当前用户编辑（编辑评论或自己的评论的权限）。
-- `update_issue_note.notes` 可为空字符串（清空现有条目文本）。通过 `add_issue_note` 的新评论不能为空。
-- 更改隐私（`private_notes` / `is_private`）需要单独的私有评论权限；否则拒绝，文本不会部分更改。
+- 条目须可由当前用户编辑（编辑评论或自己的评论的权限）。
+- 输入：`journal_id`（必填）；至少需要 `notes` 或 `private_notes` 之一。
+- `notes` 可为空字符串（清空现有条目文本）。通过 `add_issue_note` 的新评论不能为空。
+- 更改隐私（`private_notes`）需要单独的私有评论权限；否则拒绝，文本不会部分更改。
+- 输出 — journal 对象（`JOURNAL`），与编辑文本时相同。
 - 记录谁编辑了 journal 条目。
 - 只读模式下不可用。
+- 只读模式下不可用。
 
-### `validate_issue_create` / `validate_issue_update`
+### `list_trackers`
 
-- 独立的只读工具，非写入工具上的 `validate_only` 参数。只读模式下可用。
-- `validate_issue_create`：与 `create_issue` 相同字段，无 `idempotency_key`。`project` 和 `subject` 必填。权限 `add_issues`。
-- `validate_issue_update`：仅**议题属性**的 dry-run（类似 `update_issue`，无 `uploads`）。`issue_id` 必填。议题必须可由当前用户编辑。验证前创建用户 journal 上下文，无 DB 写入（如真实更新）。
-- 行为：将属性应用到议题但不保存。Redmine 数据不更改。
-- 属性仍经与 Redmine Web 表单相同的写入规则。若客户端**显式传入**值且 Redmine 未应用，则为 MCP 错误，非成功。
-- 不在议题可写字段中的显式字段（禁用/工作流只读/派生日期等）进入 `rejected_fields`。对 `tracker_id`、`status_id`、`assigned_to_id`、`is_private`、`parent_issue_id` 和 `custom_fields`，另检查请求值是否实际应用。
-- 相同规则适用于 `create_issue`、`update_issue` 和 `copy_issue`：显式请求值未应用时不写入。
-- 成功：`{ "valid": true, "errors": [] }`。
-- 失败：`{ "valid": false, "errors": ["..."] }`。部分显式字段未应用时——另有 `rejected_fields`（字段名，例如 `["tracker_id"]`），典型错误时——与创建/更新相同形式的 `missing_required_fields` / `hint`。
-- 另捕获：tracker 对当前用户不可用；无效或不可用的 custom field 值；工作流禁止的状态转换；负责人不可用于分配。
+- 无 `project`：Redmine 实例的全部 tracker（`id`、`name`、`description`）。
+- 有 `project`：仅对已可见项目启用的 tracker；`description` 为空字符串以保持响应 schema 一致。
+- 不存在或不可见的 `project` 返回 `NOT_FOUND`，而不是 `FORBIDDEN`。
 
 ### `list_issues` — 扩展过滤器
 
 - 保留现有扁平过滤器（`project`、`status_id`、`tracker_id`、`assigned_to_id` / `assignee_ref`、`priority_id`、`fixed_version_id`、`sort`、`fields`）。
 - 可选 `filters`：对象数组 `{ "field": "...", "operator": "...", "values": ["..."] }`。`values` 为字符串数组；无值运算符允许空数组。
-- 允许的 `field`：`status_id`、`tracker_id`、`assigned_to_id`、`priority_id`、`fixed_version_id`、`category_id`、`subject`、`due_date`、`start_date`、`created_on`、`updated_on`、`estimated_hours`、`done_ratio`、`author_id`、`watcher_id`，以及议题 custom fields 的 `cf_<id>`。
+- 允许的 `field`：`status_id`、`tracker_id`、`assigned_to_id`、`priority_id`、`fixed_version_id`、`category_id`、`parent_id`、`subject`、`due_date`、`start_date`、`created_on`、`updated_on`、`estimated_hours`、`done_ratio`、`author_id`、`watcher_id`，以及议题 custom field 的 `cf_<id>`。
 - 运算符为标准 Redmine 查询运算符，含 `=`、`!`、`>=`、`<=`、`><`、`~`、`!~`、`o`、`c`、`*`、`!*`。运算符必须对字段类型有效；否则——参数错误。
 - 未知 `field` 或无效 `operator`——参数错误，不执行查询。
 - 扁平过滤器与 `filters` 以 AND 组合。
 - 过滤器仅应用于当前用户可见的议题。
+- 直接子任务：`filters` 中 `field` 为 `parent_id`，`operator` 为 `=`，一个或多个值 — 父议题 ID。同一字符串内可用逗号分隔多个 ID（Redmine 写法：`"123,456"`），或多个 `values` 元素（MCP 在查询前合并为一条字符串）。列出的每个父议题必须对当前用户可见；否则为「议题未找到」错误（与 `get_issue` 相同）。独立工具 `list_subtasks` 已移除。
 
-### `run_issue_query`
-
-- 输入：`query_id`（必填，来自 `list_queries`）；可选 `project`、`fields`、`limit`/`offset`。
-- 执行当前用户可见的已保存议题查询。响应格式与 `list_issues` 相同列表封装。
-- 若查询为项目范围，结果限制于该项目（及查询可见性规则）。项目查询的可选 `project` 必须与查询项目一致；否则——参数错误。
-- 若查询为全局，可选 `project` 将选择缩小到该可见项目。
-- 不可见或不存在的 `query_id`——错误。
-- `list_queries` 不执行查询；执行使用 `run_issue_query`。
 
 ### `list_project_activities`
 
@@ -331,6 +324,20 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 - 不返回议题列表。
 - `spent_hours` 需要版本项目上的 `view_time_entries`；无权限——`null`。仅对可见版本议题求和，且仅当前用户可见的 time entries（含 `time_entries_visibility=own`）。
 
+### Repository / SCM
+
+- 项目 Repository 模块必须启用；否则错误「Repository module is not enabled for this project」。
+- `list_repositories` / `get_repository`：权限 `view_changesets` **或** `browse_repository`。无 `repository_id` 时按 Redmine 规则选择仓库：`project.repository || project.repositories.first`。
+- `list_revisions` / `get_revision`：权限 `view_changesets`。列表来自缓存的 changeset（`Changeset.visible`）；未 fetch 的新提交可能缺失。
+- `get_revision`：通过 `repository.find_changeset_by_name` 按 revision 号或 prefix hash 查找；**不**接受 branch/tag（SCM ref 用 `get_repository_file` / `get_repository_diff`）；关联 issue 仅 `Issue.visible`；`file_changes` 仅在 `:browse_repository` 时返回。
+- `get_repository`：即使 SCM 无法提供 `default_branch` 也返回 metadata（`id`, `scm_type`, `name`, …）；此时 `default_branch` 为 `null`。
+- `get_repository_file` / `get_repository_diff`：权限 `browse_repository`。无 `repository_id` 时使用项目默认仓库。默认 revision 为 `default_branch`；参数可为 branch/tag/hash（SCM 适配器）。解析默认 revision 时 SCM 失败（省略 `revision`）——`REDMINE_API_ERROR`。
+- `get_repository_file`：目录——分页 `entries`；文本文件——inline `content`；二进制——metadata，可选 `content_base64`（独立字段）。是否二进制按内容判定：无效 UTF-8、空字节或控制字节占比高。文本扩展名不覆盖该结果。大小受 `min(Setting.file_max_size_displayed, MCP cap 10 MiB)` 限制。
+- `get_repository_diff`：unified diff，按 `min(Setting.diff_max_lines_displayed, MCP line cap)` 和 MCP byte cap（512 KiB）截断。
+- 缺少 repository/revision/path——`NOT_FOUND`；SCM 适配器失败——`REDMINE_API_ERROR`，非 `NOT_FOUND` 或 `INTERNAL_ERROR`。
+- 只要用户能看到至少一个项目，所有 Repository 工具都会出现在 `tools/list` 中。出现在列表中并不表示有权调用：缺少所需权限时调用返回 `FORBIDDEN`，不会隐藏工具。调用时在权限检查之后再检查 Repository 模块状态：无权限——`FORBIDDEN`（含模块关闭）；有权限但模块关闭——`INVALID_STATE`。
+- 不返回 `url`、`root_url`、`login`、`password`、`extra_info`。
+
 ### 论坛
 
 - 必须启用项目论坛模块；否则错误「Boards module is not enabled for this project」（wiki 类比）。
@@ -342,19 +349,11 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 
 ### `list_users`
 
-- 有 `project`：活动**用户**项目成员（权限 `view_members`）。项目中的组成员身份不以组形式出现；组内用户仅在其本人为成员时出现。无 `project`——仅管理员。
-- 元素：`id`、`login`、`firstname`、`lastname`、`mail`。不含 `created_on`（该字段在 `admin_list_users` 上）。
-- 可选 `query`：对 `login`、`firstname` 和 `lastname` 的不区分大小写子串。
-- 可选 `login` 保留（仅 login 子串）以兼容。同时设置 `query` 和 `login` 时，两条件均适用（AND）。
-
-### `admin_list_users`
-
-- 安装实例活跃用户的全局目录。仅管理员。项目成员和项目分配请使用带 `project` 的 `list_users`。
-- 输入：可选 `name`（login、firstname、lastname 或 email 的不区分大小写子串）、`group_id`、分页。
-- 元素：`id`、`login`、`firstname`、`lastname`、`mail`、`created_on`。
-- 规范全名 — `redmine_admin_list_users`。
-- 旧名称 `list_all_users`（`redmine_list_all_users`）至少保留到下一 major 版本作为 callable alias：相同权限、输入、输出和行为；以旧名称 `tools/call` 执行相同操作；alias 不在 `tools/list` 中发布；alias 调用可在 audit log 中通过调用的工具名区分。
-- 服务器 instructions 及其他工具的链接使用规范名。
+- 带 `project`：活跃的**用户**项目成员（权限 `view_members`）。项目中的组membership 不会作为组出现；组内用户仅在其本人为成员时出现。无 `project` — 仅管理员。
+- 带 `project` 的元素：`id`、`login`、`firstname`、`lastname`、`mail`（无 `created_on`）。管理员无 `project` 的全局列表还包含 `created_on`。
+- 可选 `query`：对 `login`、`firstname`、`lastname` 不区分大小写的子串匹配。
+- 保留可选 `login`（仅 login 子串）以兼容。若同时设置 `query` 和 `login`，两个条件均适用（AND）。
+- 可选 `name` 和 `group_id` — 仅无 `project` 的管理员。`name` — 通过 `User.like` 的子串（login、firstname、lastname、email）。`group_id` — 组内用户。`name` 与 `group_id` 可组合；与 `query`/`login` 条件以 AND 组合。带 `project` 或非管理员时，`name`/`group_id` — 参数错误或拒绝访问。
 
 ### `list_project_files`
 
@@ -389,22 +388,21 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 ## 边界情况
 
 - 不存在/不可访问的项目或议题——`{ "error": "..." }`。
-- 只读模式——写入工具在调用 handler **之前**返回 `{ "error": "MCP is in read-only mode..." }`，含 Extension API 工具；validate/form options/list/get 仍可用。
+- 只读模式 — 写入工具在调用 handler **之前**返回 `{ "error": "MCP is in read-only mode..." }`，含 Extension API 工具；form options/list/get 仍可用。
 - 空列表/搜索结果——`{ "ok": true, "data": { "items": [] }, "meta": { ... } }`。
 - 带分页的列表/搜索始终返回 `data.items` 和 `meta`（`total_count`、`limit`、`offset`、`has_more`、`next_offset`）。默认 limit 25，最大 100。
-- 所有 `list_*` 工具（含参考：trackers、statuses、roles、queries、boards、board topics 等）使用相同封装。`get_issue_form_options`、`get_project`、`get_version`、`get_board_message`、`summarize_project_status` 及 validate 工具——单个对象，非列表封装。
-- `download_attachment`：不存在和不可访问的附件——相同「未找到」错误；磁盘上文件不可读——错误；磁盘或读取后大小超过 10 MiB——`FILE_TOO_LARGE`（较低 DB `filesize` 不能绕过限制）。`get_attachment` 适用相同不可区分的「缺失/无访问」规则。
+- 所有 `list_*` 工具（含参考：trackers、statuses、roles、queries、boards、board topics 等）使用相同封装。`get_issue_form_options`、`get_project`、`get_version`、`get_board_message`、`summarize_project_status` — 单个对象，非列表封装。
+- `get_attachment`：不存在或不可访问的附件 — 相同的「未找到」错误；`include_content: true` 时磁盘文件不可读 — 错误；磁盘或读取后大小超过 10 MiB — `FILE_TOO_LARGE`（无法用较低的 DB `filesize` 绕过限制）；仅元数据请求不适用大小限制。
 - `list_project_activities`：窗口超过 90 天——参数错误；`from` 晚于 `to`——参数错误。
-- `run_issue_query`：不可见查询——视为不存在。
+- 带 `query_id` 的 `list_issues`：不可见查询——视为不存在；`query_id` 与额外筛选参数同时使用——参数错误。
 - `get_issue_form_options` 对来自其他项目的议题使用 `issue_id`——参数错误。
 - `get_issue_form_options` 使用 `issue_id` 且 `tracker_id` 不等于该议题 tracker——参数错误。
-- Validate 工具不创建议题、不更新议题、不创建 journal 条目、不消耗 `idempotency_key`。
 - 通过 MCP 的写入经 Redmine 模型。模型回调运行；Web 界面控制器钩子不被调用。
 
 ## 错误处理
 
 - 缺少权限——工具在 `tools/list` 中不可见或「Permission denied」。
-- 模型验证错误——`{ "error": "<messages>" }`（议题创建/更新和 validate 工具另有 `missing_required_fields` 为模型错误符号的字段名，不解析翻译文本，以及 `hint`）。
+- 模型验证错误 — `{ "error": "<messages>" }`（议题 create/update 另有 `missing_required_fields` 为模型错误符号的字段名，不解析翻译文本，以及 `hint`）。
 - 禁用的 wiki/boards 模块——单独错误消息，非「未找到」。
 - 封装中的规范错误代码由 handler 显式设置；代码不从消息文本派生，不依赖用户语言。
 
@@ -416,28 +414,28 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 4. `create_issue` / `update_issue` 有效字段成功；无权限或只读——错误。
 4a. 启用开始日期设置时 `create_issue` 无 `start_date` 设置当天日期；显式 `start_date` 或 `null` 不被该设置覆盖。
 5. `delete_issue` 无 `confirm_delete` 返回 `INVALID_STATE` 和影响；确认后删除。
-6. `create_time_entry` 需要 `hours` 和 `project` 或 `issue_id`；`import_time_entries` 接受批次。
+6. `create_time_entry` requires `hours` and `project` or `issue_id`.
 7. 启用 Wiki 模块时 `list_wiki_pages` / `get_wiki_page` / `create_wiki_page` 可用。
 8. `upload_file` 需要 `filename` 和 `content_base64`；议题附件的 `delete_attachment` 需要确认。
 9. 无 `use_mcp` 的用户无法通过 MCP 认证；无工具权限者在 `tools/list` 中看不到该工具。
 10. 相同 `idempotency_key` 和相同参数重试 `create_issue` 不创建重复；相同 key 不同 subject——`CONFLICT`。
-11. 可见议题附件的 `download_attachment` 返回实际内容 `size` 的 `content_base64`；磁盘上文件 > 10 MiB（即使元数据较小）——`FILE_TOO_LARGE`；不存在和不可访问的附件不可区分。
+11. 对可见 issue 附件，`include_content: true` 的 `get_attachment` 返回 `content_base64` 和 `content_url` 及实际内容 `size`；磁盘上 > 10 MiB（即使元数据很小）— `FILE_TOO_LARGE`；无 `include_content` 时大文件仅返回元数据；不存在与不可访问不可区分；`tools/list` 中无 `redmine_download_attachment`。
 12. 按 identifier 的 `get_project` 返回 description、subprojects 和 `last_activity_date`；不可访问项目——错误。
 13. 项目的 `get_issue_form_options` 返回 trackers/statuses/priorities/categories/versions/assignees/custom_fields 及 `editable_fields` / `required_fields` 列表；`trackers`——仅当前用户可用的；有 `issue_id` 时 statuses 反映该议题允许的转换；`issue_id` + 不同 `tracker_id`——错误；`possible_values`——`label`/`value` 对象。
-14. 无效 tracker 或 status 的 `validate_issue_create` 返回 `valid: false` 和 `rejected_fields`，不创建议题；只读模式下调用成功。
-15. 带 `filters`（`due_date` `<=` 日期、`priority_id` `!`）的 `list_issues` 仅返回匹配的可见议题；未知 `field`——错误。
-16. 可见 `query_id` 的 `run_issue_query` 返回与 UI 中已保存查询相同的议题；不可见查询——错误。
+14. 无效 tracker 或 status 的 `create_issue` 返回错误且不创建议题。
+15. 带 `filters`（`due_date` `<=` 日期、`priority_id` `!`、子任务用 `parent_id` `=`）的 `list_issues` 仅返回匹配的可见议题；未知 `field` — 错误；不可见父议题的 `parent_id` `=`（包括逗号分隔列表中的任一 ID）— 「议题未找到」错误。
+16. 带可见 `query_id` 的 `list_issues` 返回与 UI 中保存查询相同的议题；不可见 query — 错误；带 `filters` 的 `query_id` — 参数错误。
 17. 3 天的 `list_project_activities` 返回带分页的项目事件；91 天窗口——错误。
 18. `summarize_project_status` 包含 `overdue_count`、`unassigned_count`、`stale_issues_count`、`issues_closed_during_period` 和 `reopened_count`。
 19. `get_version` 返回聚合 `open_issues_count` / `completed_percent`，无议题列表。
 20. 启用 Boards 模块时 `list_boards` / `list_board_topics` / `get_board_message` 可用；禁用时——模块错误。
 21. 带 `project` 和按名称 `query` 的 `list_users` 无需知道 login 即可找到成员。
 22. `get_issue_form_options` 返回 `type` 为 user/group 的 assignees 及仅可编辑 custom fields 含 `required`/`readonly`。
-23. 显式传入 Redmine 未应用的值的 `create_issue` / `update_issue` / `copy_issue` / `validate_issue_create`（含禁用/只读核心字段，含创建时 `description`）返回错误且不部分保存。
-24. `validate_issue_update` 不接受 notes；评论由 `add_issue_note` 创建。有 `add_issue_notes` 的 `add_issue_note` 无 `edit_issues` 成功；无 `set_notes_private` 的 `private_notes`——拒绝。仅 `uploads` 的 `update_issue` 有添加附件权限时无 `edit_issues` 成功。
+23. 显式传入 Redmine 未应用的值的 `create_issue` / `update_issue` / `copy_issue`（含禁用/只读核心字段，含创建时 `description`）返回错误且不部分保存。
+24. 有 `add_issue_notes` 的 `add_issue_note` 无 `edit_issues` 成功；无 `set_notes_private` 的 `private_notes` — 拒绝。仅 `uploads` 的 `update_issue` 在有添加附件权限时无 `edit_issues` 成功。
 25. `list_groups` 为有 `manage_members` 的用户返回可赋予组。
 26. `update_issue` 将 `assigned_to_id`/`category_id`/`fixed_version_id`/`parent_issue_id`/`start_date`/`due_date`/`estimated_hours` = `null` 在可写时清空字段。
-27. 无查看私有评论权限时 `update_issue_note` / `set_issue_note_private` 不更改他人的私有评论。
+27. 无查看私有评论权限时，`update_issue_note` 不会修改他人的私有评论。
 28. 有编辑评论权限但无私有评论权限的用户可更改公开评论文本，不能更改隐私标志。
 29. 带 `uploads` 的 `add_issue_note` 一次调用创建评论和附件；相同 `idempotency_key` 重试不重复。
 30. 带 `uploads` 和 `idempotency_key` 的 `update_issue`：相同 payload 重试不重复附件；相同 key 不同文件——`CONFLICT`。损坏 Base64——参数错误。
@@ -476,8 +474,16 @@ Redmine MCP 插件提供一组工具，用于处理 Redmine 项目、议题、�
 63. 同时含 journals `attr`、`cf` 和 `relation` 的 `get_issue` 不失败且仅返回可见条目。
 64. 含隐藏 custom-field detail 且 notes 为空格、制表符或换行的 journal 不包含在 `get_issue` 中。
 65. `get_private_notes` 不返回仅含空格、制表符或换行的评论。
-66. 管理员调用 `admin_list_users` 获得全局目录；非管理员在 `tools/list` 中看不到该工具，调用时被拒绝。
-67. 调用 alias `list_all_users` 与 `admin_list_users` 结果相同；`redmine_list_all_users` 不在 `tools/list` 中。
-68. 调用 alias `list_files` 与 `list_project_files` 结果相同；`redmine_list_files` 不在 `tools/list` 中。
-69. 调用 alias `delete_file` 与 `delete_attachment` 结果相同；`redmine_delete_file` 不在 `tools/list` 中。
-70. 调用 alias `get_server_info` 与 `get_mcp_info` 结果相同；`redmine_get_server_info` 不在 `tools/list` 中。
+71. `list_repositories` / `get_repository` 可在无 `view_changesets` 时有 `browse_repository`（及反之用于 discovery）；`list_revisions` / `get_revision` 需要 `view_changesets`；`get_repository_file` / `get_repository_diff` 需要 `browse_repository`。缺少所需权限时调用返回 `FORBIDDEN`，工具仍留在 `tools/list`。
+72. `get_repository_file` 文本在 `content` 中，二进制文件——无 `content` 的 metadata；`include_content_base64`——独立字段。无效 UTF-8 的文件（含无空字节的 PNG 签名）视为二进制。含 NUL 的 `.txt` 即使扩展名如此也视为二进制。
+73. `get_repository_diff` 按行/字节限制截断 diff 并返回 `truncated: true`。
+74. SCM 适配器失败返回 `REDMINE_API_ERROR`，非 `NOT_FOUND`。
+75. `list_repositories` / `list_revisions` / 文件工具在 Repository 模块启用时可用。有权限但模块关闭——`INVALID_STATE`；无权限且模块关闭——`FORBIDDEN`。
+76. `get_revision` 无 `:browse_repository` 时不返回 `file_changes`。
+77. 无 `revision` 的 `get_repository_file` 在 `default_branch` SCM 失败时返回 `REDMINE_API_ERROR`。
+78. `default_branch` SCM 失败时 `get_repository` 返回 `default_branch: null` 的 metadata。
+79. 只要用户能看到至少一个项目，无论 `view_changesets` / `browse_repository` 如何组合（包括两者皆无），所有 Repository 工具都出现在 `tools/list` 中。
+80. 带 `project` 的 `update_issue` 将议题移到允许的目标项目；未知 identifier — `NOT_FOUND`（非 `FORBIDDEN`）；目标项目无 `add_issues` — 带 `project_id` 的 `rejected_fields`，议题不更改项目。
+81. `get_mcp_info` 返回有效格式的 `text_formatting`（`common_mark`、`textile`、空字符串或已注册的第三方格式代码）。
+82. 在不重启 Redmine 的情况下更改文本格式后，下一次 `get_mcp_info` 调用返回新的 `text_formatting` 值。
+83. 若设置中为未注册格式，`get_mcp_info` 返回 `text_formatting: ""`。

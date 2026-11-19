@@ -30,15 +30,16 @@ module RedmineMcp
             title: 'Get MCP info',
             description: 'Return MCP plugin and session metadata, not Redmine application or host information: plugin version, ' \
                          'read-only mode, search capabilities (capabilities.issue_search), ' \
+                         'effective Redmine text_formatting for issue descriptions, notes, and Wiki text ' \
+                         '(empty when the configured format is unavailable), ' \
                          'and a brief authenticated-user summary. ' \
                          'Use at session start to learn MCP capabilities, which search modes ' \
-                         'are available, and whether writes are allowed. Does not modify Redmine. ' \
+                         'are available, the text format to use for writes, and whether writes are allowed. Does not modify Redmine. ' \
                          'For full user profile fields, use redmine_get_current_user.',
             input_schema: {properties: {}},
             output_schema: RedmineMcp::Core::OutputSchemas::SERVER_INFO,
             permission: :use_mcp,
             annotations: Helpers::READ_ONLY_ANNOTATIONS,
-            aliases: ['get_server_info'],
             handler: method(:get_mcp_info)
           )
         end
@@ -49,6 +50,7 @@ module RedmineMcp
             server_version: RedmineMcp::VERSION,
             read_only_mode: Settings.read_only?,
             auth_mode: 'legacy',
+            text_formatting: Settings.effective_text_formatting,
             current_user: {
               id: user.id,
               login: user.login,

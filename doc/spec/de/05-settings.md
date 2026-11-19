@@ -74,11 +74,14 @@ Einstellungen sind unter **Administration → Plugins → Redmine MCP → Config
 - Ein zuvor gespeichertes Extension-Auto-Load-Flag wird ignoriert: das Laden von Erweiterungen folgt Enable MCP.
 - Ein zuvor gespeichertes Logging-Level wird ignoriert und beim Speichern der Einstellungen entfernt.
 - Bei aktiviertem Read-only-Modus bleiben Schreib-Tools in `tools/list` (wenn der Benutzer Berechtigungen hat), liefern beim Aufruf aber einen Fehler; Leseaktionen kombinierter Tools funktionieren weiter.
+- Wenn die Datenbank noch nicht erstellt wurde oder die Settings-Tabelle nicht verfügbar ist, wird das Lesen der Plugin-Einstellungen als „Einstellungen nicht verfügbar“ behandelt: MCP gilt als deaktiviert, die Autoload von Erweiterungen läuft nicht. Dies darf den Redmine-Start und Befehle wie `db:create` nicht unterbrechen.
+- Andere Datenbankverbindungsfehler werden nicht als „keine Einstellungen“ maskiert: nur fehlende DB/Settings-Tabelle ergibt einen sicheren Fallback auf leere Einstellungen; andere Verbindungsfehler werden nicht durch dieses Verhalten ersetzt.
 
 ## Fehlerbehandlung
 
 - Einstellungsfehler dürfen den Redmine-Start nicht blockieren.
 - Protokollierungsfehler beeinflussen die MCP-Anfrageverarbeitung nicht.
+- Eine fehlende Datenbank beim Lesen der Plugin-Einstellungen unterbricht weder die Anwendungsinitialisierung noch die Datenbankerstellung.
 
 ## Testszenarien
 
@@ -89,3 +92,4 @@ Einstellungen sind unter **Administration → Plugins → Redmine MCP → Config
 5. Die Einstellungsseite zeigt nur Namen installierter Plugins mit MCP-Integration; jedes hat eine Checkbox.
 6. Ein Plugin ohne MCP-Integration erscheint nicht auf der Einstellungsseite.
 7. Ist MCP deaktiviert, werden Erweiterungen anderer Plugins beim Start nicht geladen.
+8. Bei fehlender Datenbank unterbricht das Lesen der Plugin-Einstellungen weder Boot noch `db:create`; MCP bleibt bis zum Vorhandensein der Einstellungen deaktiviert.

@@ -94,4 +94,16 @@ class RedmineMcpInputValidatorTest < RedmineMcpTestCase
     assert_equal false, payload[:ok]
     assert_equal 'VALIDATION_ERROR', payload.dig(:error, :code)
   end
+
+  test 'accepts top level oneOf without empty property guard' do
+    schema = {
+      oneOf: [
+        {properties: {query_id: {type: 'integer', minimum: 1}}, required: ['query_id']},
+        {properties: {project: {type: 'string'}}},
+      ]
+    }
+
+    assert_nil RedmineMcp::InputValidator.validate(schema, {project: 'ecookbook'})
+    assert_nil RedmineMcp::InputValidator.validate(schema, {query_id: 1})
+  end
 end

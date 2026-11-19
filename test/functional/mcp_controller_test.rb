@@ -23,6 +23,8 @@ class McpControllerTest < Redmine::IntegrationTest
   MCP_PROTOCOL_VERSION = '2025-11-25'
   TOOLS_CALL_METHOD = 'tools/call'
   TOOLS_LIST_METHOD = 'tools/list'
+  COMMONMARK_MARKDOWN = 'CommonMark Markdown'
+  PLAIN_TEXT = 'plain text'
 
   fixtures :users, :roles, :members, :member_roles, :projects
 
@@ -71,6 +73,78 @@ class McpControllerTest < Redmine::IntegrationTest
     assert_equal MCP_PROTOCOL_VERSION, body.dig('result', 'protocolVersion')
   end
 
+  test 'initialize instructions reflect live text formatting' do
+    with_settings text_formatting: 'common_mark' do
+      post_mcp(User.find(1), 'initialize')
+
+      assert_response :success
+      instructions = response_json.dig('result', 'instructions').to_s
+
+      assert_includes instructions, COMMONMARK_MARKDOWN
+    end
+
+    with_settings text_formatting: 'textile' do
+      post_mcp(User.find(1), 'initialize')
+
+      assert_response :success
+      instructions = response_json.dig('result', 'instructions').to_s
+
+      assert_includes instructions, 'Textile'
+      assert_not_includes instructions, COMMONMARK_MARKDOWN
+    end
+
+    with_settings text_formatting: '' do
+      post_mcp(User.find(1), 'initialize')
+
+      assert_response :success
+      instructions = response_json.dig('result', 'instructions').to_s
+
+      assert_includes instructions, PLAIN_TEXT
+    end
+  end
+
+  test 'initialize instructions name registered third-party text formatting' do
+    format_name = 'mcp_custom_formatter'
+    formatters = Redmine::WikiFormatting.class_variable_get(:@@formatters)
+    formatters[format_name] = {
+      formatter: Redmine::WikiFormatting::NullFormatter::Formatter,
+      helper: Redmine::WikiFormatting::NullFormatter::Helper,
+      html_parser: Redmine::WikiFormatting::HtmlParser,
+      label: 'MCP custom formatter'
+    }
+
+    with_settings(text_formatting: format_name) do
+      post_mcp(User.find(1), 'initialize')
+
+      assert_response(:success)
+      instructions = response_json.dig('result', 'instructions').to_s
+
+      assert_includes(instructions, format_name)
+      assert_includes(instructions, 'custom format')
+      assert_not_includes(instructions, PLAIN_TEXT)
+      assert_not_includes(instructions, COMMONMARK_MARKDOWN)
+      assert_not_includes(instructions, 'Textile')
+    end
+  ensure
+    formatters&.delete(format_name)
+  end
+
+  test 'initialize treats unregistered text formatting as unavailable' do
+    with_settings text_formatting: 'custom_formatter' do
+      post_mcp(User.find(1), 'initialize')
+
+      assert_response :success
+      instructions = response_json.dig('result', 'instructions').to_s
+
+      assert_includes instructions, 'custom_formatter'
+      assert_includes instructions, 'not available'
+      assert_includes instructions, PLAIN_TEXT
+      assert_not_includes instructions, 'custom format'
+      assert_not_includes instructions, COMMONMARK_MARKDOWN
+      assert_not_includes instructions, 'Textile'
+    end
+  end
+
   test 'tools list succeeds for user with use_mcp' do
     post_mcp(User.find(1), TOOLS_LIST_METHOD, params: {})
 
@@ -81,80 +155,16 @@ class McpControllerTest < Redmine::IntegrationTest
     assert(tools.any? { |tool| tool['name'] == 'redmine_get_mcp_info' })
   end
 
-  test 'admin_list_users is listed and list_all_users alias is callable but hidden' do
-    assert_canonical_tool_listed_alias_hidden(
-      canonical: 'redmine_admin_list_users',
-      alias_name: 'redmine_list_all_users'
-    )
-
-    post_mcp(
-      User.find(1),
-      TOOLS_CALL_METHOD,
-      params: {name: 'redmine_list_all_users', arguments: {}}
-    )
+  test 'removed consolidated tools are absent from tools list' do
+    post_mcp(User.find(1), TOOLS_LIST_METHOD)
 
     assert_response :success
-    result = response_json['result']
+    tools = response_json.dig('result', 'tools')
+    names = Array(tools).map { |tool| tool['name'] }
 
-    assert result.dig('structuredContent', 'ok'), "unexpected body: #{response.body.to_s[0, 800]}"
-    assert_kind_of Array, result.dig('structuredContent', 'data', 'items')
-  end
-
-  test 'list_project_files is listed and list_files alias is callable but hidden' do
-    assert_canonical_tool_listed_alias_hidden(
-      canonical: 'redmine_list_project_files',
-      alias_name: 'redmine_list_files'
-    )
-
-    post_mcp(
-      User.find(1),
-      TOOLS_CALL_METHOD,
-      params: {name: 'redmine_list_files', arguments: {project: 'ecookbook'}}
-    )
-
-    assert_response :success
-    result = response_json['result']
-
-    assert result.dig('structuredContent', 'ok'), "unexpected body: #{response.body.to_s[0, 800]}"
-    assert_kind_of Array, result.dig('structuredContent', 'data', 'items')
-  end
-
-  test 'delete_attachment is listed and delete_file alias is callable but hidden' do
-    assert_canonical_tool_listed_alias_hidden(
-      canonical: 'redmine_delete_attachment',
-      alias_name: 'redmine_delete_file'
-    )
-
-    post_mcp(
-      User.find(1),
-      TOOLS_CALL_METHOD,
-      params: {name: 'redmine_delete_file', arguments: {file_id: 999_999}}
-    )
-
-    assert_response :success
-    result = response_json['result']
-
-    assert_equal false, result.dig('structuredContent', 'ok')
-    assert result.dig('structuredContent', 'error')
-  end
-
-  test 'get_mcp_info is listed and get_server_info alias is callable but hidden' do
-    assert_canonical_tool_listed_alias_hidden(
-      canonical: 'redmine_get_mcp_info',
-      alias_name: 'redmine_get_server_info'
-    )
-
-    post_mcp(
-      User.find(1),
-      TOOLS_CALL_METHOD,
-      params: {name: 'redmine_get_server_info', arguments: {}}
-    )
-
-    assert_response :success
-    result = response_json['result']
-
-    assert result.dig('structuredContent', 'ok'), "unexpected body: #{response.body.to_s[0, 800]}"
-    assert result.dig('structuredContent', 'data', 'server_version').present?
+    assert_not_includes names, 'redmine_admin_list_users'
+    assert_not_includes names, 'redmine_run_issue_query'
+    assert_not_includes names, 'redmine_import_time_entries'
   end
 
   test 'tools call returns structuredContent' do
@@ -180,7 +190,7 @@ class McpControllerTest < Redmine::IntegrationTest
     assert_equal 'NOT_FOUND', result.dig('structuredContent', 'error', 'code')
   end
 
-  test 'tools call permission denial is audited' do
+  test 'tools call authorization denial is audited' do
     Role.find(1).add_permission!(:use_mcp)
     Role.find(2).add_permission!(:use_mcp)
     project = Project.generate!(is_public: false)
@@ -197,10 +207,10 @@ class McpControllerTest < Redmine::IntegrationTest
     result = response_json['result']
 
     assert result['isError']
-    assert_equal 'FORBIDDEN', result.dig('structuredContent', 'error', 'code')
-    assert audits.any?, 'expected permission denial to be audited'
+    assert_equal 'NOT_FOUND', result.dig('structuredContent', 'error', 'code')
+    assert audits.any?, 'expected authorization denial to be audited'
     assert_equal 'error', audits.last[:outcome]
-    assert_equal 'FORBIDDEN', audits.last[:error_code]
+    assert_equal 'NOT_FOUND', audits.last[:error_code]
   end
 
   test 'rejects oversized http body before mcp transport' do
@@ -351,16 +361,6 @@ private
     JSON.parse(response.body)
   rescue JSON::ParserError
     flunk("expected JSON body, got: #{response.body.to_s[0, 500]}")
-  end
-
-  def assert_canonical_tool_listed_alias_hidden(canonical:, alias_name:)
-    post_mcp(User.find(1), TOOLS_LIST_METHOD, params: {})
-
-    assert_response(:success)
-    names = response_json.dig('result', 'tools').map { |tool| tool['name'] }
-
-    assert_includes(names, canonical)
-    assert_not_includes(names, alias_name)
   end
 
   def register_review_resource!(uri)
