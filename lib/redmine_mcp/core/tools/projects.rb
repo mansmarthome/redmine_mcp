@@ -623,7 +623,7 @@ module RedmineMcp
             return Helpers.paginated_list([], total_count: 0, limit: limit, offset: offset) unless author
           end
 
-          fetcher = Redmine::Activity::Fetcher.new(user, project: project, with_subprojects: false, author: author)
+          fetcher = Redmine::Activity::Fetcher.new(user, project: project, with_subprojects: true, author: author)
           if args[:event_types].present?
             requested = Array(args[:event_types]).map(&:to_s)
             fetcher.scope = requested
